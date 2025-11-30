@@ -1,0 +1,14 @@
+{
+    "sqltools.connections": [
+        {
+            "name": "SocialMediaDB",
+            "driver": "PostgreSQL",
+            "server": "localhost",
+            "port": 5432,
+            "database": "socialmedia",
+            "username": "postgres",
+            "password": "postgres" 
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
