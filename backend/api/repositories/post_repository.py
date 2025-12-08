@@ -11,7 +11,7 @@ class PostRepository:
     def create(self, post: Post) -> Post:
         """Create a new post in the database"""
         query = text("""
-            INSERT INTO posts (user_id, community_id, content, media_url)
+            INSERT INTO Posts (user_id, community_id, content, media_url)
             VALUES (:user_id, :community_id, :content, :media_url)
             RETURNING post_id, user_id, community_id, content, media_url, created_at
         """)
@@ -29,7 +29,7 @@ class PostRepository:
 
     def get_by_id(self, post_id: int) -> Optional[Post]:
         """Get post by ID"""
-        query = text("SELECT * FROM posts WHERE post_id = :post_id")
+        query = text("SELECT * FROM Posts WHERE post_id = :post_id")
         result = self.db.session.execute(query, {"post_id": post_id})
         row = result.fetchone()
         return Post.from_row(row)
@@ -37,7 +37,7 @@ class PostRepository:
     def get_by_user_id(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Post]:
         """Get all posts by a specific user"""
         query = text("""
-            SELECT * FROM posts 
+            SELECT * FROM Posts 
             WHERE user_id = :user_id 
             ORDER BY created_at DESC 
             LIMIT :limit OFFSET :offset
@@ -52,7 +52,7 @@ class PostRepository:
     def get_by_community_id(self, community_id: int, limit: int = 50, offset: int = 0) -> List[Post]:
         """Get all posts in a specific community"""
         query = text("""
-            SELECT * FROM posts 
+            SELECT * FROM Posts 
             WHERE community_id = :community_id 
             ORDER BY created_at DESC 
             LIMIT :limit OFFSET :offset
@@ -67,7 +67,7 @@ class PostRepository:
     def update(self, post: Post) -> Optional[Post]:
         """Update an existing post"""
         query = text("""
-            UPDATE posts 
+            UPDATE Posts 
             SET content = :content,
                 media_url = :media_url,
                 community_id = :community_id
@@ -88,7 +88,7 @@ class PostRepository:
 
     def delete(self, post_id: int) -> bool:
         """Delete a post by ID"""
-        query = text("DELETE FROM posts WHERE post_id = :post_id RETURNING post_id")
+        query = text("DELETE FROM Posts WHERE post_id = :post_id RETURNING post_id")
         result = self.db.session.execute(query, {"post_id": post_id})
         self.db.session.commit()
         return result.fetchone() is not None
@@ -97,10 +97,10 @@ class PostRepository:
         """Get posts from users that the given user follows (accepted follows only)"""
         query = text("""
             SELECT DISTINCT p.* 
-            FROM posts p
-            INNER JOIN follows f ON p.user_id = f.following_id
+            FROM Posts p
+            INNER JOIN Follows f ON p.user_id = f.following_id
             WHERE f.follower_id = :user_id 
-                AND f.status_id = (SELECT status_id FROM followstatus WHERE status_name = 'accepted')
+                AND f.status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')
             ORDER BY p.created_at DESC 
             LIMIT :limit OFFSET :offset
         """)
@@ -114,13 +114,13 @@ class PostRepository:
     def count(self, user_id: Optional[int] = None, community_id: Optional[int] = None) -> int:
         """Count posts (optionally filtered by user or community)"""
         if user_id:
-            query = text("SELECT COUNT(*) FROM posts WHERE user_id = :user_id")
+            query = text("SELECT COUNT(*) FROM Posts WHERE user_id = :user_id")
             result = self.db.session.execute(query, {"user_id": user_id})
         elif community_id:
-            query = text("SELECT COUNT(*) FROM posts WHERE community_id = :community_id")
+            query = text("SELECT COUNT(*) FROM Posts WHERE community_id = :community_id")
             result = self.db.session.execute(query, {"community_id": community_id})
         else:
-            query = text("SELECT COUNT(*) FROM posts")
+            query = text("SELECT COUNT(*) FROM Posts")
             result = self.db.session.execute(query)
         
         return result.scalar()

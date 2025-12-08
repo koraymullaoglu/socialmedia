@@ -11,7 +11,7 @@ class CommentRepository:
     def create(self, comment: Comment) -> Comment:
         """Create a new comment in the database"""
         query = text("""
-            INSERT INTO comments (post_id, user_id, content)
+            INSERT INTO Comments (post_id, user_id, content)
             VALUES (:post_id, :user_id, :content)
             RETURNING comment_id, post_id, user_id, content, created_at
         """)
@@ -28,7 +28,7 @@ class CommentRepository:
 
     def get_by_id(self, comment_id: int) -> Optional[Comment]:
         """Get comment by ID"""
-        query = text("SELECT * FROM comments WHERE comment_id = :comment_id")
+        query = text("SELECT * FROM Comments WHERE comment_id = :comment_id")
         result = self.db.session.execute(query, {"comment_id": comment_id})
         row = result.fetchone()
         return Comment.from_row(row)
@@ -36,7 +36,7 @@ class CommentRepository:
     def get_by_post_id(self, post_id: int, limit: int = 100, offset: int = 0) -> List[Comment]:
         """Get all comments for a specific post"""
         query = text("""
-            SELECT * FROM comments 
+            SELECT * FROM Comments 
             WHERE post_id = :post_id 
             ORDER BY created_at ASC 
             LIMIT :limit OFFSET :offset
@@ -51,7 +51,7 @@ class CommentRepository:
     def get_by_user_id(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Comment]:
         """Get all comments by a specific user"""
         query = text("""
-            SELECT * FROM comments 
+            SELECT * FROM Comments 
             WHERE user_id = :user_id 
             ORDER BY created_at DESC 
             LIMIT :limit OFFSET :offset
@@ -66,7 +66,7 @@ class CommentRepository:
     def update(self, comment: Comment) -> Optional[Comment]:
         """Update an existing comment"""
         query = text("""
-            UPDATE comments 
+            UPDATE Comments 
             SET content = :content
             WHERE comment_id = :comment_id
             RETURNING comment_id, post_id, user_id, content, created_at
@@ -83,13 +83,13 @@ class CommentRepository:
 
     def delete(self, comment_id: int) -> bool:
         """Delete a comment by ID"""
-        query = text("DELETE FROM comments WHERE comment_id = :comment_id RETURNING comment_id")
+        query = text("DELETE FROM Comments WHERE comment_id = :comment_id RETURNING comment_id")
         result = self.db.session.execute(query, {"comment_id": comment_id})
         self.db.session.commit()
         return result.fetchone() is not None
 
     def count_by_post_id(self, post_id: int) -> int:
         """Count comments for a specific post"""
-        query = text("SELECT COUNT(*) FROM comments WHERE post_id = :post_id")
+        query = text("SELECT COUNT(*) FROM Comments WHERE post_id = :post_id")
         result = self.db.session.execute(query, {"post_id": post_id})
         return result.scalar()

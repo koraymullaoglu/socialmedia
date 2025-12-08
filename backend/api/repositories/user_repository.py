@@ -13,7 +13,7 @@ class UserRepository:
         """Create a new user in the database"""
         try:
             query = text("""
-                INSERT INTO users (username, email, password_hash, bio, profile_picture_url, is_private)
+                INSERT INTO Users (username, email, password_hash, bio, profile_picture_url, is_private)
                 VALUES (:username, :email, :password_hash, :bio, :profile_picture_url, :is_private)
                 RETURNING user_id, username, email, password_hash, bio, profile_picture_url, is_private, created_at
             """)
@@ -37,19 +37,19 @@ class UserRepository:
 
     def get_by_id(self, user_id: int) -> Optional[User]:
         """Get user by ID"""
-        query = text("SELECT * FROM users WHERE user_id = :user_id")
+        query = text("SELECT * FROM Users WHERE user_id = :user_id")
         result = self.db.session.execute(query, {"user_id": user_id})
         return User.from_row(result.fetchone())
 
     def get_by_email(self, email: str) -> Optional[User]:
         """Get user by email"""
-        query = text("SELECT * FROM users WHERE email = :email")
+        query = text("SELECT * FROM Users WHERE email = :email")
         result = self.db.session.execute(query, {"email": email})
         return User.from_row(result.fetchone())
 
     def get_by_username(self, username: str) -> Optional[User]:
         """Get user by username"""
-        query = text("SELECT * FROM users WHERE username = :username")
+        query = text("SELECT * FROM Users WHERE username = :username")
         result = self.db.session.execute(query, {"username": username})
         return User.from_row(result.fetchone())
 
@@ -57,7 +57,7 @@ class UserRepository:
         """Update an existing user"""
         try:
             query = text("""
-                UPDATE users 
+                UPDATE Users 
                 SET username = :username,
                     email = :email,
                     password_hash = :password_hash,
@@ -88,7 +88,7 @@ class UserRepository:
 
     def delete(self, user_id: int) -> bool:
         """Delete a user by ID"""
-        query = text("DELETE FROM users WHERE user_id = :user_id RETURNING user_id")
+        query = text("DELETE FROM Users WHERE user_id = :user_id RETURNING user_id")
         result = self.db.session.execute(query, {"user_id": user_id})
         self.db.session.commit()
         return result.fetchone() is not None
@@ -96,7 +96,7 @@ class UserRepository:
     def get_all(self, limit: int = 100, offset: int = 0) -> List[User]:
         """Get all users with pagination"""
         query = text("""
-            SELECT * FROM users 
+            SELECT * FROM Users 
             ORDER BY created_at DESC 
             LIMIT :limit OFFSET :offset
         """)
@@ -106,7 +106,7 @@ class UserRepository:
     def search(self, query_str: str, limit: int = 20) -> List[User]:
         """Search users by username using ILIKE"""
         query = text("""
-            SELECT * FROM users 
+            SELECT * FROM Users 
             WHERE username ILIKE :search 
             ORDER BY username 
             LIMIT :limit
@@ -116,15 +116,15 @@ class UserRepository:
 
     def count(self) -> int:
         """Get total user count"""
-        query = text("SELECT COUNT(*) FROM users")
+        query = text("SELECT COUNT(*) FROM Users")
         return self.db.session.execute(query).scalar()
 
     def exists_by_email(self, email: str) -> bool:
         """Check if email exists"""
-        query = text("SELECT EXISTS(SELECT 1 FROM users WHERE email = :email)")
+        query = text("SELECT EXISTS(SELECT 1 FROM Users WHERE email = :email)")
         return self.db.session.execute(query, {"email": email}).scalar()
 
     def exists_by_username(self, username: str) -> bool:
         """Check if username exists"""
-        query = text("SELECT EXISTS(SELECT 1 FROM users WHERE username = :username)")
+        query = text("SELECT EXISTS(SELECT 1 FROM Users WHERE username = :username)")
         return self.db.session.execute(query, {"username": username}).scalar()
