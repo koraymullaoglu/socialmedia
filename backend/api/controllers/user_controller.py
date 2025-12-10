@@ -167,12 +167,18 @@ def search_users():
 @user_bp.route('/users/<int:user_id>', methods=['GET'])
 @token_required
 def get_user_by_id(user_id):
-    """Get a specific user by ID"""
+    """Get a specific user by ID with privacy checks"""
     try:
-        user = user_service.get_user(user_id=user_id)
+        user = user_service.get_user(user_id=user_id, current_user_id=g.current_user_id)
 
         if not user:
             return make_response(jsonify({"error": "User not found"}), 404)
+        
+        if user.get('is_private') and not user.get('can_view_profile', True):
+            return make_response(jsonify({
+                "error": "This account is private",
+                "user": user
+            }), 403)
 
         return make_response(jsonify({"user": user}), 200)
 
@@ -183,12 +189,18 @@ def get_user_by_id(user_id):
 @user_bp.route('/users/username/<string:username>', methods=['GET'])
 @token_required
 def get_user_by_username(username):
-    """Get a specific user by username"""
+    """Get a specific user by username with privacy checks"""
     try:
-        user = user_service.get_user(username=username)
+        user = user_service.get_user(username=username, current_user_id=g.current_user_id)
 
         if not user:
             return make_response(jsonify({"error": "User not found"}), 404)
+        
+        if user.get('is_private') and not user.get('can_view_profile', True):
+            return make_response(jsonify({
+                "error": "This account is private",
+                "user": user
+            }), 403)
 
         return make_response(jsonify({"user": user}), 200)
 

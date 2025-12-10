@@ -1,4 +1,5 @@
 from api.repositories.user_repository import UserRepository
+from api.repositories.follow_repository import FollowRepository
 from api.entities.entities import User
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import Optional, Dict, Any, List
@@ -7,10 +8,11 @@ from typing import Optional, Dict, Any, List
 class UserService:
     def __init__(self):
         self.user_repository = UserRepository()
+        self.follow_repository = FollowRepository()
 
     def get_user(self, user_id: int = None, username: str = None,
-                 email: str = None) -> Optional[Dict[str, Any]]:
-        """Get user by ID, username, or email"""
+                 email: str = None, current_user_id: int = None) -> Optional[Dict[str, Any]]:
+        """Get user by ID, username, or email with privacy controls"""
         user = None
 
         if user_id:
@@ -21,7 +23,20 @@ class UserService:
             user = self.user_repository.get_by_email(email)
 
         if user:
-            return user.to_dict()
+            user_dict = user.to_dict()
+            # Add privacy info if current_user_id is provided
+            if current_user_id and current_user_id != user.user_id:
+                can_view = self.can_view_profile(user.user_id, current_user_id)
+                user_dict['can_view_profile'] = can_view
+                # If user is private and viewer can't see, return limited info
+                if user.is_private and not can_view:
+                    return {
+                        "user_id": user.user_id,
+                        "username": user.username,
+                        "is_private": user.is_private,
+                        "can_view_profile": False
+                    }
+            return user_dict
         return None
 
     def get_user_entity(self, user_id: int) -> Optional[User]:
@@ -87,3 +102,48 @@ class UserService:
         """Get all users with pagination"""
         users = self.user_repository.get_all(limit, offset)
         return [user.to_dict() for user in users]
+
+    def can_view_profile(self, target_user_id: int, current_user_id: int) -> bool:
+        """Check if current user can view target user's profile"""
+        # User can always view their own profile
+        if target_user_id == current_user_id:
+            return True
+        
+        # Get target user
+        target_user = self.user_repository.get_by_id(target_user_id)
+        if not target_user:
+            return False
+        
+        # If user is public, everyone can view
+        if not target_user.is_private:
+            return True
+        
+        # If user is private, check if current user is an accepted follower
+        follow = self.follow_repository.get_by_ids(current_user_id, target_user_id)
+        # status_id = 2 means 'accepted'
+        return follow is not None and follow.status_id == 2
+
+    def get_profile_visibility(self, target_user_id: int, current_user_id: int) -> Dict[str, Any]:
+        """Get what current user can see of target user's profile"""
+        can_view = self.can_view_profile(target_user_id, current_user_id)
+        target_user = self.user_repository.get_by_id(target_user_id)
+        
+        if not target_user:
+            return {"can_view": False, "reason": "User not found"}
+        
+        result = {
+            "user_id": target_user_id,
+            "can_view_profile": can_view,
+            "is_private": target_user.is_private
+        }
+        
+        if target_user_id == current_user_id:
+            result["reason"] = "Own profile"
+        elif not target_user.is_private:
+            result["reason"] = "Public profile"
+        elif can_view:
+            result["reason"] = "Accepted follower"
+        else:
+            result["reason"] = "Private profile - not following"
+        
+        return result

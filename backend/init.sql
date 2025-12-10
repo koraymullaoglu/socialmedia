@@ -106,6 +106,7 @@ CREATE TABLE Comments (
     post_id INT REFERENCES Posts(post_id) ON DELETE CASCADE,
     user_id INT REFERENCES Users(user_id) ON DELETE CASCADE,
     content TEXT NOT NULL,
+    parent_comment_id INT REFERENCES Comments(comment_id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -168,6 +169,7 @@ CREATE INDEX IF NOT EXISTS idx_posts_created_at ON Posts(created_at DESC);
 -- Index on comments
 CREATE INDEX IF NOT EXISTS idx_comments_post_id ON Comments(post_id);
 CREATE INDEX IF NOT EXISTS idx_comments_user_id ON Comments(user_id);
+CREATE INDEX IF NOT EXISTS idx_comments_parent_comment_id ON Comments(parent_comment_id);
 
 -- Index on post likes
 CREATE INDEX IF NOT EXISTS idx_postlikes_post_id ON PostLikes(post_id);

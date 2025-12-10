@@ -38,11 +38,15 @@ def get_post(post_id):
 @post_bp.route('/posts/user/<int:user_id>', methods=['GET'])
 @token_required
 def get_user_posts(user_id):
-    """Get all posts by a specific user"""
+    """Get all posts by a specific user with privacy checks"""
     limit = request.args.get('limit', 50, type=int)
     offset = request.args.get('offset', 0, type=int)
     
-    result = post_service.get_user_posts(user_id, limit, offset)
+    result = post_service.get_user_posts(user_id, current_user_id=request.user_id, limit=limit, offset=offset)
+    
+    if result.get('message') == 'This account is private':
+        return jsonify({"success": False, "error": "This account is private", **result}), 403
+    
     return jsonify({"success": True, **result}), 200
 
 
@@ -61,7 +65,6 @@ def update_post(post_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 403 for permission errors, 404 for not found
     status_code = 403 if "only" in result.get('error', '').lower() else 404
     return jsonify(result), status_code
 
@@ -75,7 +78,6 @@ def delete_post(post_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 403 for permission errors, 404 for not found
     status_code = 403 if "only" in result.get('error', '').lower() else 404
     return jsonify(result), status_code
 
@@ -100,7 +102,6 @@ def like_post(post_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 400 for validation errors (own post, already liked), 404 for not found
     status_code = 404 if "not found" in result.get('error', '').lower() else 400
     return jsonify(result), status_code
 
@@ -114,7 +115,6 @@ def unlike_post(post_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 400 for validation errors (not liked), 404 for not found
     status_code = 404 if "not found" in result.get('error', '').lower() else 400
     return jsonify(result), status_code
 

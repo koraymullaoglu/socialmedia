@@ -9,7 +9,7 @@ comment_service = CommentService()
 @comment_bp.route('/posts/<int:post_id>/comments', methods=['POST'])
 @token_required
 def create_comment(post_id):
-    """Create a new comment on a post"""
+    """Create a new comment on a post (or reply to a comment)"""
     data = request.get_json()
     
     if not data or 'content' not in data:
@@ -18,7 +18,8 @@ def create_comment(post_id):
     result = comment_service.create_comment(
         post_id=post_id,
         user_id=request.user_id,
-        content=data.get('content')
+        content=data.get('content'),
+        parent_comment_id=data.get('parent_comment_id')
     )
     
     if result['success']:
@@ -66,7 +67,6 @@ def update_comment(comment_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 403 for permission errors, 404 for not found
     status_code = 403 if "only" in result.get('error', '').lower() else 404
     return jsonify(result), status_code
 
@@ -80,6 +80,19 @@ def delete_comment(comment_id):
     if result['success']:
         return jsonify(result), 200
     
-    # Return 403 for permission errors, 404 for not found
     status_code = 403 if "only" in result.get('error', '').lower() else 404
     return jsonify(result), status_code
+
+
+@comment_bp.route('/comments/<int:comment_id>/replies', methods=['GET'])
+@token_required
+def get_comment_replies(comment_id):
+    """Get all replies to a specific comment"""
+    limit = request.args.get('limit', 100, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    result = comment_service.get_comment_replies(comment_id, limit, offset)
+    
+    if result.get('success', True):
+        return jsonify(result), 200
+    return jsonify(result), 404

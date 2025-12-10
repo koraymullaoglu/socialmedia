@@ -181,6 +181,7 @@ class Comment:
     post_id: Optional[int] = None
     user_id: Optional[int] = None
     content: Optional[str] = None
+    parent_comment_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
     @classmethod
@@ -192,6 +193,7 @@ class Comment:
             post_id=row.post_id,
             user_id=row.user_id,
             content=row.content,
+            parent_comment_id=getattr(row, 'parent_comment_id', None),
             created_at=row.created_at
         )
 
@@ -201,6 +203,7 @@ class Comment:
             "post_id": self.post_id,
             "user_id": self.user_id,
             "content": self.content,
+            "parent_comment_id": self.parent_comment_id,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

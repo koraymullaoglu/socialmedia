@@ -11,15 +11,16 @@ class CommentRepository:
     def create(self, comment: Comment) -> Comment:
         """Create a new comment in the database"""
         query = text("""
-            INSERT INTO Comments (post_id, user_id, content)
-            VALUES (:post_id, :user_id, :content)
-            RETURNING comment_id, post_id, user_id, content, created_at
+            INSERT INTO Comments (post_id, user_id, content, parent_comment_id)
+            VALUES (:post_id, :user_id, :content, :parent_comment_id)
+            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at
         """)
         
         result = self.db.session.execute(query, {
             "post_id": comment.post_id,
             "user_id": comment.user_id,
-            "content": comment.content
+            "content": comment.content,
+            "parent_comment_id": comment.parent_comment_id
         })
         self.db.session.commit()
         
@@ -34,10 +35,10 @@ class CommentRepository:
         return Comment.from_row(row)
 
     def get_by_post_id(self, post_id: int, limit: int = 100, offset: int = 0) -> List[Comment]:
-        """Get all comments for a specific post"""
+        """Get all top-level comments for a specific post (no parent)"""
         query = text("""
             SELECT * FROM Comments 
-            WHERE post_id = :post_id 
+            WHERE post_id = :post_id AND parent_comment_id IS NULL
             ORDER BY created_at ASC 
             LIMIT :limit OFFSET :offset
         """)
@@ -89,7 +90,28 @@ class CommentRepository:
         return result.fetchone() is not None
 
     def count_by_post_id(self, post_id: int) -> int:
-        """Count comments for a specific post"""
-        query = text("SELECT COUNT(*) FROM Comments WHERE post_id = :post_id")
+        """Count top-level comments for a specific post"""
+        query = text("SELECT COUNT(*) FROM Comments WHERE post_id = :post_id AND parent_comment_id IS NULL")
         result = self.db.session.execute(query, {"post_id": post_id})
+        return result.scalar()
+
+    def get_replies(self, comment_id: int, limit: int = 100, offset: int = 0) -> List[Comment]:
+        """Get all replies to a specific comment"""
+        query = text("""
+            SELECT * FROM Comments 
+            WHERE parent_comment_id = :comment_id 
+            ORDER BY created_at ASC 
+            LIMIT :limit OFFSET :offset
+        """)
+        result = self.db.session.execute(query, {
+            "comment_id": comment_id,
+            "limit": limit,
+            "offset": offset
+        })
+        return [Comment.from_row(row) for row in result.fetchall()]
+
+    def count_replies(self, comment_id: int) -> int:
+        """Count replies to a specific comment"""
+        query = text("SELECT COUNT(*) FROM Comments WHERE parent_comment_id = :comment_id")
+        result = self.db.session.execute(query, {"comment_id": comment_id})
         return result.scalar()
