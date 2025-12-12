@@ -50,6 +50,18 @@ def get_user_posts(user_id):
     return jsonify({"success": True, **result}), 200
 
 
+@post_bp.route('/posts/community/<int:community_id>', methods=['GET'])
+@token_required
+def get_community_posts(community_id):
+    """Get all posts in a specific community with engagement metrics"""
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    result = post_service.get_community_posts(community_id, current_user_id=request.user_id, limit=limit, offset=offset)
+    
+    return jsonify({"success": True, **result}), 200
+
+
 @post_bp.route('/posts/<int:post_id>', methods=['PUT'])
 @token_required
 def update_post(post_id):

@@ -158,6 +158,14 @@ class TestPostService(unittest.TestCase):
             content="Test post",
             created_at=datetime.now()
         )
+        self.mock_repo.get_with_stats.return_value = {
+            'post_id': 1,
+            'user_id': 1,
+            'content': "Test post",
+            'like_count': 0,
+            'comment_count': 0,
+            'liked_by_user': False
+        }
         
         # Act
         result = self.service.create_post(user_id=1, content="Test post")
@@ -165,6 +173,8 @@ class TestPostService(unittest.TestCase):
         # Assert
         self.assertTrue(result['success'])
         self.assertEqual(result['post']['content'], "Test post")
+        self.assertEqual(result['post']['like_count'], 0)
+        self.assertEqual(result['post']['comment_count'], 0)
         print("✅ test_create_post_success passed")
 
     def test_create_post_validation_error(self):
@@ -180,6 +190,14 @@ class TestPostService(unittest.TestCase):
     def test_get_post_found(self):
         """Test getting existing post"""
         # Arrange
+        self.mock_repo.get_with_stats.return_value = {
+            'post_id': 1,
+            'user_id': 1,
+            'content': "Test post",
+            'like_count': 5,
+            'comment_count': 3,
+            'liked_by_user': False
+        }
         self.mock_repo.get_by_id.return_value = Post(
             post_id=1,
             user_id=1,
@@ -193,11 +211,14 @@ class TestPostService(unittest.TestCase):
         # Assert
         self.assertIsNotNone(result)
         self.assertEqual(result['post_id'], 1)
+        self.assertEqual(result['like_count'], 5)
+        self.assertEqual(result['comment_count'], 3)
         print("✅ test_get_post_found passed")
 
     def test_get_post_not_found(self):
         """Test getting non-existent post"""
         # Arrange
+        self.mock_repo.get_with_stats.return_value = None
         self.mock_repo.get_by_id.return_value = None
         
         # Act
@@ -223,6 +244,14 @@ class TestPostService(unittest.TestCase):
             content="New content",
             created_at=datetime.now()
         )
+        self.mock_repo.get_with_stats.return_value = {
+            'post_id': 1,
+            'user_id': 1,
+            'content': "New content",
+            'like_count': 2,
+            'comment_count': 1,
+            'liked_by_user': False
+        }
         
         # Act
         result = self.service.update_post(1, 1, {"content": "New content"})
@@ -230,6 +259,7 @@ class TestPostService(unittest.TestCase):
         # Assert
         self.assertTrue(result['success'])
         self.assertEqual(result['post']['content'], "New content")
+        self.assertEqual(result['post']['like_count'], 2)
         print("✅ test_update_post_success passed")
 
     def test_update_post_not_owner(self):
@@ -275,13 +305,14 @@ class TestPostService(unittest.TestCase):
     def test_get_user_posts(self):
         """Test getting user's posts"""
         # Arrange
-        mock_post = Post(
-            post_id=1,
-            user_id=1,
-            content="User post",
-            created_at=datetime.now()
-        )
-        self.mock_repo.get_by_user_id.return_value = [mock_post]
+        self.mock_repo.get_by_user_id_with_stats.return_value = [{
+            'post_id': 1,
+            'user_id': 1,
+            'content': "User post",
+            'like_count': 3,
+            'comment_count': 2,
+            'liked_by_user': False
+        }]
         self.mock_repo.count.return_value = 1
         
         # Act
@@ -290,22 +321,43 @@ class TestPostService(unittest.TestCase):
         # Assert
         self.assertEqual(len(result['posts']), 1)
         self.assertEqual(result['total'], 1)
+        self.assertEqual(result['posts'][0]['like_count'], 3)
         print("✅ test_get_user_posts passed")
 
     def test_get_feed(self):
         """Test getting user's feed"""
         # Arrange
-        mock_posts = [
-            Post(post_id=1, user_id=2, content="Friend post 1", created_at=datetime.now()),
-            Post(post_id=2, user_id=3, content="Friend post 2", created_at=datetime.now())
+        self.mock_repo.get_feed_with_stats.return_value = [
+            {
+                'post_id': 1,
+                'user_id': 2,
+                'content': "Friend post 1",
+                'like_count': 5,
+                'comment_count': 2,
+                'liked_by_user': False
+            },
+            {
+                'post_id': 2,
+                'user_id': 3,
+                'content': "Friend post 2",
+                'like_count': 3,
+                'comment_count': 1,
+                'liked_by_user': True
+            }
         ]
-        self.mock_repo.get_feed.return_value = mock_posts
+        # Mock user repository for privacy checks
+        from api.entities.entities import User
+        mock_user = MagicMock(spec=User)
+        mock_user.is_private = False
+        self.service.user_repository = MagicMock()
+        self.service.user_repository.get_by_id.return_value = mock_user
         
         # Act
         result = self.service.get_feed(1)
         
         # Assert
         self.assertEqual(len(result['posts']), 2)
+        self.assertEqual(result['posts'][0]['like_count'], 5)
         print("✅ test_get_feed passed")
 
 

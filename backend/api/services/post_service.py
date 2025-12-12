@@ -30,28 +30,32 @@ class PostService:
         # Save to database
         created_post = self.post_repository.create(post)
         
+        # Get post with engagement metrics (will be 0 for new posts)
+        post_with_stats = self.post_repository.get_with_stats(created_post.post_id, user_id)
+        
         return {
             "success": True,
-            "post": created_post.to_dict()
+            "post": post_with_stats
         }
 
     def get_post(self, post_id: int, user_id: Optional[int] = None) -> Optional[Dict[str, Any]]:
-        """Get post by ID with like count and user's like status (with privacy check)"""
-        post = self.post_repository.get_by_id(post_id)
-        if post:
+        """Get post by ID with engagement metrics and user's interaction status (with privacy check)"""
+        # Use the new get_with_stats method
+        post_dict = self.post_repository.get_with_stats(post_id, user_id)
+        
+        if post_dict:
+            # Get the basic post to check privacy
+            post = self.post_repository.get_by_id(post_id)
+            
             # Check if user can view this post
             if user_id and not self.can_view_post(post, user_id):
                 return None
             
-            post_dict = post.to_dict()
-            post_dict['like_count'] = self.post_repository.count_likes(post_id)
-            if user_id:
-                post_dict['liked_by_user'] = self.post_repository.has_user_liked(post_id, user_id)
             return post_dict
         return None
 
     def get_user_posts(self, user_id: int, current_user_id: int = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """Get all posts by a specific user (filtered by privacy)"""
+        """Get all posts by a specific user with engagement metrics (filtered by privacy)"""
         # Check if current user can view this user's posts
         if current_user_id and current_user_id != user_id:
             post_author = self.user_repository.get_by_id(user_id)
@@ -67,23 +71,24 @@ class PostService:
                         "message": "This account is private"
                     }
         
-        posts = self.post_repository.get_by_user_id(user_id, limit, offset)
+        # Use the new method with stats
+        posts = self.post_repository.get_by_user_id_with_stats(user_id, current_user_id, limit, offset)
         total = self.post_repository.count(user_id=user_id)
         
         return {
-            "posts": [post.to_dict() for post in posts],
+            "posts": posts,
             "total": total,
             "limit": limit,
             "offset": offset
         }
 
-    def get_community_posts(self, community_id: int, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """Get all posts in a specific community"""
-        posts = self.post_repository.get_by_community_id(community_id, limit, offset)
+    def get_community_posts(self, community_id: int, current_user_id: int = None, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """Get all posts in a specific community with engagement metrics"""
+        posts = self.post_repository.get_by_community_id_with_stats(community_id, current_user_id, limit, offset)
         total = self.post_repository.count(community_id=community_id)
         
         return {
-            "posts": [post.to_dict() for post in posts],
+            "posts": posts,
             "total": total,
             "limit": limit,
             "offset": offset
@@ -116,9 +121,12 @@ class PostService:
         # Save updates
         updated_post = self.post_repository.update(post)
         
+        # Get post with engagement metrics
+        post_with_stats = self.post_repository.get_with_stats(post_id, user_id)
+        
         return {
             "success": True,
-            "post": updated_post.to_dict()
+            "post": post_with_stats
         }
 
     def delete_post(self, post_id: int, user_id: int) -> Dict[str, Any]:
@@ -140,24 +148,20 @@ class PostService:
         return {"success": False, "error": "Failed to delete post"}
 
     def get_feed(self, user_id: int, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """Get authenticated user's feed (posts from accepted follows only)"""
-        # Get all accepted follows
-        following = self.follow_repository.get_following(user_id, limit=1000)
+        """Get authenticated user's feed with engagement metrics (posts from accepted follows only)"""
+        # Use the new feed method with stats
+        posts = self.post_repository.get_feed_with_stats(user_id, limit, offset)
         
-        # Get posts only from public users and accepted private follows
-        posts = self.post_repository.get_feed(user_id, limit, offset)
-        
-        # Filter posts based on privacy (the feed query should already do this,
-        # but this is an extra layer of security)
+        # Filter posts based on privacy (extra security layer)
         filtered_posts = []
-        for post in posts:
-            post_author = self.user_repository.get_by_id(post.user_id)
+        for post_dict in posts:
+            post_author = self.user_repository.get_by_id(post_dict['user_id'])
             if post_author:
                 # Include if: own post, public user, or accepted follow
-                if (post.user_id == user_id or 
+                if (post_dict['user_id'] == user_id or 
                     not post_author.is_private or 
-                    self._is_accepted_follower(user_id, post.user_id)):
-                    filtered_posts.append(post.to_dict())
+                    self._is_accepted_follower(user_id, post_dict['user_id'])):
+                    filtered_posts.append(post_dict)
         
         return {
             "posts": filtered_posts,
@@ -184,10 +188,14 @@ class PostService:
         success = self.post_repository.like_post(post_id, user_id)
         
         if success:
+            # Get updated stats
+            post_with_stats = self.post_repository.get_with_stats(post_id, user_id)
             return {
                 "success": True,
                 "message": "Post liked successfully",
-                "like_count": self.post_repository.count_likes(post_id)
+                "like_count": post_with_stats['like_count'],
+                "comment_count": post_with_stats['comment_count'],
+                "liked_by_user": post_with_stats['liked_by_user']
             }
         return {"success": False, "error": "Failed to like post"}
 
@@ -206,10 +214,14 @@ class PostService:
         success = self.post_repository.unlike_post(post_id, user_id)
         
         if success:
+            # Get updated stats
+            post_with_stats = self.post_repository.get_with_stats(post_id, user_id)
             return {
                 "success": True,
                 "message": "Post unliked successfully",
-                "like_count": self.post_repository.count_likes(post_id)
+                "like_count": post_with_stats['like_count'],
+                "comment_count": post_with_stats['comment_count'],
+                "liked_by_user": post_with_stats['liked_by_user']
             }
         return {"success": False, "error": "Failed to unlike post"}
 

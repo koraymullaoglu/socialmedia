@@ -1,7 +1,7 @@
 from sqlalchemy import text
 from api.extensions import db
 from api.entities.entities import Post, PostLike
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 
 class PostRepository:
@@ -175,3 +175,166 @@ class PostRepository:
         """)
         result = self.db.session.execute(query, {"post_id": post_id, "user_id": user_id})
         return result.fetchone() is not None
+
+    def get_with_stats(self, post_id: int, user_id: Optional[int] = None) -> Optional[Dict]:
+        """Get post with engagement metrics (like count, comment count, and user's like status)"""
+        query = text("""
+            SELECT 
+                p.*,
+                COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
+                COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
+                CASE 
+                    WHEN :user_id IS NOT NULL THEN 
+                        EXISTS(
+                            SELECT 1 FROM PostLikes 
+                            WHERE post_id = p.post_id AND user_id = :user_id
+                        )
+                    ELSE FALSE 
+                END as liked_by_user
+            FROM Posts p
+            LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+            LEFT JOIN Comments c ON p.post_id = c.post_id
+            WHERE p.post_id = :post_id
+            GROUP BY p.post_id, p.user_id, p.community_id, p.content, p.media_url, p.created_at
+        """)
+        
+        result = self.db.session.execute(query, {
+            "post_id": post_id,
+            "user_id": user_id
+        })
+        row = result.fetchone()
+        
+        if row:
+            post = Post.from_row(row)
+            return {
+                **post.to_dict(),
+                'like_count': row.like_count,
+                'comment_count': row.comment_count,
+                'liked_by_user': row.liked_by_user
+            }
+        return None
+
+    def get_by_user_id_with_stats(self, user_id: int, current_user_id: Optional[int] = None, 
+                                   limit: int = 50, offset: int = 0) -> List[Dict]:
+        """Get all posts by a specific user with engagement metrics"""
+        query = text("""
+            SELECT 
+                p.*,
+                COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
+                COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
+                CASE 
+                    WHEN :current_user_id IS NOT NULL THEN 
+                        EXISTS(
+                            SELECT 1 FROM PostLikes 
+                            WHERE post_id = p.post_id AND user_id = :current_user_id
+                        )
+                    ELSE FALSE 
+                END as liked_by_user
+            FROM Posts p
+            LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+            LEFT JOIN Comments c ON p.post_id = c.post_id
+            WHERE p.user_id = :user_id
+            GROUP BY p.post_id, p.user_id, p.community_id, p.content, p.media_url, p.created_at
+            ORDER BY p.created_at DESC 
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        result = self.db.session.execute(query, {
+            "user_id": user_id,
+            "current_user_id": current_user_id,
+            "limit": limit,
+            "offset": offset
+        })
+        
+        posts_with_stats = []
+        for row in result.fetchall():
+            post = Post.from_row(row)
+            posts_with_stats.append({
+                **post.to_dict(),
+                'like_count': row.like_count,
+                'comment_count': row.comment_count,
+                'liked_by_user': row.liked_by_user
+            })
+        return posts_with_stats
+
+    def get_by_community_id_with_stats(self, community_id: int, current_user_id: Optional[int] = None,
+                                       limit: int = 50, offset: int = 0) -> List[Dict]:
+        """Get all posts in a specific community with engagement metrics"""
+        query = text("""
+            SELECT 
+                p.*,
+                COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
+                COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
+                CASE 
+                    WHEN :current_user_id IS NOT NULL THEN 
+                        EXISTS(
+                            SELECT 1 FROM PostLikes 
+                            WHERE post_id = p.post_id AND user_id = :current_user_id
+                        )
+                    ELSE FALSE 
+                END as liked_by_user
+            FROM Posts p
+            LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+            LEFT JOIN Comments c ON p.post_id = c.post_id
+            WHERE p.community_id = :community_id
+            GROUP BY p.post_id, p.user_id, p.community_id, p.content, p.media_url, p.created_at
+            ORDER BY p.created_at DESC 
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        result = self.db.session.execute(query, {
+            "community_id": community_id,
+            "current_user_id": current_user_id,
+            "limit": limit,
+            "offset": offset
+        })
+        
+        posts_with_stats = []
+        for row in result.fetchall():
+            post = Post.from_row(row)
+            posts_with_stats.append({
+                **post.to_dict(),
+                'like_count': row.like_count,
+                'comment_count': row.comment_count,
+                'liked_by_user': row.liked_by_user
+            })
+        return posts_with_stats
+
+    def get_feed_with_stats(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict]:
+        """Get feed posts with engagement metrics (accepted follows only)"""
+        query = text("""
+            SELECT 
+                p.*,
+                COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
+                COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
+                EXISTS(
+                    SELECT 1 FROM PostLikes 
+                    WHERE post_id = p.post_id AND user_id = :user_id
+                ) as liked_by_user
+            FROM Posts p
+            INNER JOIN Follows f ON p.user_id = f.following_id
+            LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+            LEFT JOIN Comments c ON p.post_id = c.post_id
+            WHERE f.follower_id = :user_id 
+                AND f.status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')
+            GROUP BY p.post_id, p.user_id, p.community_id, p.content, p.media_url, p.created_at
+            ORDER BY p.created_at DESC 
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        result = self.db.session.execute(query, {
+            "user_id": user_id,
+            "limit": limit,
+            "offset": offset
+        })
+        
+        posts_with_stats = []
+        for row in result.fetchall():
+            post = Post.from_row(row)
+            posts_with_stats.append({
+                **post.to_dict(),
+                'like_count': row.like_count,
+                'comment_count': row.comment_count,
+                'liked_by_user': row.liked_by_user
+            })
+        return posts_with_stats
