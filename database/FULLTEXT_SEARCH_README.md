@@ -5,6 +5,7 @@ Complete guide to using PostgreSQL full-text search in the Social Media applicat
 ## Overview
 
 Full-text search allows users to search for posts and users using natural language queries. The system supports:
+
 - **English search** with stemming and stop-words
 - **Turkish search** with language-specific processing
 - **Bilingual support** for mixed Turkish/English content
@@ -14,6 +15,7 @@ Full-text search allows users to search for posts and users using natural langua
 ## Features
 
 ### Search Capabilities
+
 - Search posts by content
 - Search users by username and bio
 - Combined search across posts and users
@@ -23,6 +25,7 @@ Full-text search allows users to search for posts and users using natural langua
 - Language-specific stemming
 
 ### Performance
+
 - GIN (Generalized Inverted Index) for fast lookups
 - Automatic index updates via triggers
 - Sub-millisecond search times
@@ -33,11 +36,13 @@ Full-text search allows users to search for posts and users using natural langua
 ### Added Columns
 
 **Posts table:**
+
 ```sql
 search_vector tsvector  -- Auto-populated from content
 ```
 
 **Users table:**
+
 ```sql
 search_vector tsvector  -- Auto-populated from username and bio
 ```
@@ -57,6 +62,7 @@ idx_posts_community_id_created ON Posts(community_id, created_at DESC)
 ### Automatic Updates
 
 Triggers automatically update `search_vector` when data changes:
+
 - **posts_search_vector_trigger**: Updates when post content changes
 - **users_search_vector_trigger**: Updates when username or bio changes
 
@@ -67,6 +73,7 @@ Triggers automatically update `search_vector` when data changes:
 Search posts using plain text query (recommended for most cases).
 
 **Signature:**
+
 ```sql
 search_posts_simple(
     search_query TEXT,
@@ -76,12 +83,14 @@ search_posts_simple(
 ```
 
 **Returns:**
+
 - post_id, user_id, username, content, media_url
 - community_id, community_name, created_at
 - like_count, comment_count
 - relevance_rank (0.0 to 1.0)
 
 **Examples:**
+
 ```sql
 -- Search for "artificial intelligence"
 SELECT * FROM search_posts_simple('artificial intelligence');
@@ -98,6 +107,7 @@ SELECT * FROM search_posts_simple('machine learning AI');
 Advanced search with operator support (AND, OR, NOT).
 
 **Signature:**
+
 ```sql
 search_posts(
     search_query TEXT,
@@ -107,6 +117,7 @@ search_posts(
 ```
 
 **Examples:**
+
 ```sql
 -- AND operator: both words must exist
 SELECT * FROM search_posts('machine & learning');
@@ -126,6 +137,7 @@ SELECT * FROM search_posts('machine <-> learning');  -- adjacent words
 Search posts in Turkish with proper stemming.
 
 **Signature:**
+
 ```sql
 search_posts_turkish(
     search_query TEXT,
@@ -134,6 +146,7 @@ search_posts_turkish(
 ```
 
 **Examples:**
+
 ```sql
 -- Turkish word search
 SELECT * FROM search_posts_turkish('veritabanı');
@@ -147,6 +160,7 @@ SELECT * FROM search_posts_turkish('yazılım geliştirme');
 Search users by username and bio.
 
 **Signature:**
+
 ```sql
 search_users(
     search_query TEXT,
@@ -156,12 +170,14 @@ search_users(
 ```
 
 **Returns:**
+
 - user_id, username, email, bio
 - profile_picture_url, is_private, created_at
 - follower_count, following_count, post_count
 - relevance_rank
 
 **Examples:**
+
 ```sql
 -- Find developers
 SELECT * FROM search_users('developer');
@@ -178,6 +194,7 @@ SELECT * FROM search_users('yazılımcı', 'turkish'::regconfig);
 Turkish-specific user search.
 
 **Examples:**
+
 ```sql
 SELECT * FROM search_users_turkish('yazılım');
 SELECT * FROM search_users_turkish('yemek blogger');
@@ -188,6 +205,7 @@ SELECT * FROM search_users_turkish('yemek blogger');
 Combined search across both posts and users.
 
 **Signature:**
+
 ```sql
 search_all(
     search_query TEXT,
@@ -196,6 +214,7 @@ search_all(
 ```
 
 **Returns:**
+
 - result_type ('post' or 'user')
 - id (post_id or user_id)
 - title (username)
@@ -203,6 +222,7 @@ search_all(
 - created_at, relevance_rank
 
 **Examples:**
+
 ```sql
 -- Search everything
 SELECT * FROM search_all('Python programming');
@@ -216,11 +236,13 @@ SELECT * FROM search_all('developer') WHERE result_type = 'user';
 ### English Configuration
 
 Default language with:
+
 - English stemming (running → run, computers → computer)
 - Stop-word removal (the, is, at, etc.)
 - Case-insensitive search
 
 **Usage:**
+
 ```sql
 SELECT * FROM search_posts_simple('query', 'english'::regconfig);
 ```
@@ -228,11 +250,13 @@ SELECT * FROM search_posts_simple('query', 'english'::regconfig);
 ### Turkish Configuration
 
 Turkish-specific features:
+
 - Turkish stemming (çalışıyor → çalış)
 - Turkish stop-words (ve, veya, için, etc.)
 - Turkish character support (ı, ğ, ş, ç, ö, ü)
 
 **Usage:**
+
 ```sql
 SELECT * FROM search_posts_turkish('veritabanı');
 -- or
@@ -242,6 +266,7 @@ SELECT * FROM search_posts_simple('veritabanı', 'turkish'::regconfig);
 ### Bilingual Support
 
 For mixed Turkish/English content:
+
 ```sql
 -- Uses bilingual_tr_en configuration
 -- Applies both Turkish and English stemming
@@ -303,10 +328,10 @@ def search_posts_endpoint():
     query = request.args.get('q', '')
     language = request.args.get('lang', 'english')
     limit = request.args.get('limit', 20, type=int)
-    
+
     if not query:
         return jsonify({'error': 'Query parameter required'}), 400
-    
+
     results = search_posts_api(query, language, limit)
     return jsonify({'results': results, 'count': len(results)})
 
@@ -315,10 +340,10 @@ def search_users_endpoint():
     query = request.args.get('q', '')
     language = request.args.get('lang', 'english')
     limit = request.args.get('limit', 20, type=int)
-    
+
     if not query:
         return jsonify({'error': 'Query parameter required'}), 400
-    
+
     results = search_users_api(query, language, limit)
     return jsonify({'results': results, 'count': len(results)})
 
@@ -326,16 +351,16 @@ def search_users_endpoint():
 def search_all_endpoint():
     query = request.args.get('q', '')
     language = request.args.get('lang', 'english')
-    
+
     if not query:
         return jsonify({'error': 'Query parameter required'}), 400
-    
+
     results = search_all_api(query, language)
-    
+
     # Group by type
     posts = [r for r in results if r['result_type'] == 'post']
     users = [r for r in results if r['result_type'] == 'user']
-    
+
     return jsonify({
         'posts': posts,
         'users': users,
@@ -349,7 +374,7 @@ def search_all_endpoint():
 
 ```sql
 -- Find posts about AI
-SELECT post_id, username, content, relevance_rank 
+SELECT post_id, username, content, relevance_rank
 FROM search_posts_simple('artificial intelligence')
 LIMIT 10;
 
@@ -403,7 +428,7 @@ ORDER BY p.like_count DESC;
 
 ```sql
 -- Search everything for "Python"
-SELECT 
+SELECT
     result_type,
     title,
     description,
@@ -438,7 +463,7 @@ ANALYZE Posts;
 ANALYZE Users;
 
 -- Check index size
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
@@ -450,6 +475,7 @@ WHERE indexname LIKE '%search_vector%';
 ### Best Practices
 
 1. **Use LIMIT**: Always limit results to prevent large result sets
+
    ```sql
    SELECT * FROM search_posts_simple('query') LIMIT 20;
    ```
@@ -457,9 +483,10 @@ WHERE indexname LIKE '%search_vector%';
 2. **Cache frequently searched terms**: Store popular searches in application cache
 
 3. **Add filters early**: Filter by user_id, community_id, date before searching
+
    ```sql
    -- Good: Filter after search function
-   SELECT * FROM search_posts_simple('query') 
+   SELECT * FROM search_posts_simple('query')
    WHERE created_at > NOW() - INTERVAL '30 days';
    ```
 
@@ -484,7 +511,7 @@ UPDATE Posts SET content = content;  -- Triggers update
 
 ```sql
 -- Check if GIN index is being used
-EXPLAIN SELECT * FROM Posts 
+EXPLAIN SELECT * FROM Posts
 WHERE search_vector @@ plainto_tsquery('english', 'test');
 
 -- Should show "Bitmap Index Scan" not "Seq Scan"
@@ -504,7 +531,7 @@ SELECT * FROM search_posts_turkish('içerik');
 
 ```sql
 -- Check if triggers exist
-SELECT tgname, tgenabled FROM pg_trigger 
+SELECT tgname, tgenabled FROM pg_trigger
 WHERE tgrelid = 'Posts'::regclass;
 
 -- Recreate triggers if needed
@@ -517,13 +544,14 @@ WHERE tgrelid = 'Posts'::regclass;
 
 ```sql
 -- Add custom stop words
-ALTER TEXT SEARCH DICTIONARY turkish_stopwords 
+ALTER TEXT SEARCH DICTIONARY turkish_stopwords
     STOPWORDS = '/path/to/custom_stopwords.txt';
 ```
 
 ### Weighting
 
 Search vectors use weights (A, B, C, D) for importance:
+
 - **A (highest)**: Post content, username
 - **B**: User bio
 - **C, D**: Less important fields
@@ -538,7 +566,7 @@ setweight(to_tsvector('english', bio), 'B')
 
 ```sql
 -- Highlight matching words in results
-SELECT 
+SELECT
     post_id,
     ts_headline('english', content, plainto_tsquery('english', 'PostgreSQL'),
         'MaxWords=50, MinWords=20') AS highlighted_content
@@ -564,14 +592,14 @@ psql -d socialmedia -c "ANALYZE Users;"
 
 ```sql
 -- Check search performance
-SELECT 
+SELECT
     COUNT(*) as search_count,
     AVG(execution_time) as avg_time
 FROM pg_stat_statements
 WHERE query LIKE '%search_posts%';
 
 -- Index usage statistics
-SELECT 
+SELECT
     schemaname,
     tablename,
     indexname,
@@ -616,6 +644,7 @@ psql -U postgres -d social_media_db -f test_fulltext_search.sql
 ## Summary
 
 Full-text search is now fully operational with:
+
 - ✅ English and Turkish language support
 - ✅ Auto-updating search indexes
 - ✅ Sub-millisecond search performance
