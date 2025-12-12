@@ -165,7 +165,14 @@ class TestPostLikeService(unittest.TestCase):
         self.service.post_repository.get_by_id.return_value = mock_post
         self.service.post_repository.has_user_liked.return_value = False
         self.service.post_repository.like_post.return_value = True
-        self.service.post_repository.count_likes.return_value = 1
+        self.service.post_repository.get_with_stats.return_value = {
+            'post_id': 1,
+            'user_id': 1,
+            'content': "Test post",
+            'like_count': 1,
+            'comment_count': 0,
+            'liked_by_user': True
+        }
         
         # Act
         result = self.service.like_post(post_id=1, user_id=2)
@@ -173,6 +180,7 @@ class TestPostLikeService(unittest.TestCase):
         # Assert
         self.assertTrue(result['success'])
         self.assertEqual(result['like_count'], 1)
+        self.assertEqual(result['comment_count'], 0)
         print("✅ test_like_post_success (service) passed")
 
     def test_like_post_own_post(self):
@@ -224,7 +232,14 @@ class TestPostLikeService(unittest.TestCase):
         self.service.post_repository.get_by_id.return_value = mock_post
         self.service.post_repository.has_user_liked.return_value = True
         self.service.post_repository.unlike_post.return_value = True
-        self.service.post_repository.count_likes.return_value = 0
+        self.service.post_repository.get_with_stats.return_value = {
+            'post_id': 1,
+            'user_id': 1,
+            'content': "Test post",
+            'like_count': 0,
+            'comment_count': 0,
+            'liked_by_user': False
+        }
         
         # Act
         result = self.service.unlike_post(post_id=1, user_id=2)
@@ -232,6 +247,7 @@ class TestPostLikeService(unittest.TestCase):
         # Assert
         self.assertTrue(result['success'])
         self.assertEqual(result['like_count'], 0)
+        self.assertEqual(result['comment_count'], 0)
         print("✅ test_unlike_post_success (service) passed")
 
     def test_unlike_post_not_liked(self):
