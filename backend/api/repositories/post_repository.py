@@ -13,7 +13,7 @@ class PostRepository:
         query = text("""
             INSERT INTO Posts (user_id, community_id, content, media_url)
             VALUES (:user_id, :community_id, :content, :media_url)
-            RETURNING post_id, user_id, community_id, content, media_url, created_at
+            RETURNING post_id, user_id, community_id, content, media_url, created_at, updated_at
         """)
         
         result = self.db.session.execute(query, {
@@ -72,7 +72,7 @@ class PostRepository:
                 media_url = :media_url,
                 community_id = :community_id
             WHERE post_id = :post_id
-            RETURNING post_id, user_id, community_id, content, media_url, created_at
+            RETURNING post_id, user_id, community_id, content, media_url, created_at, updated_at
         """)
         
         result = self.db.session.execute(query, {

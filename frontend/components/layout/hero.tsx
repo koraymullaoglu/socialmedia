@@ -1,7 +1,7 @@
 import type React from "react"
 import Link from "next/link"
+import { Heart, MessageCircle, Users, Zap } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Users, MessageCircle, Heart, Zap } from "lucide-react"
 
 export function Hero() {
   return (

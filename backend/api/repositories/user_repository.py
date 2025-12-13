@@ -15,7 +15,7 @@ class UserRepository:
             query = text("""
                 INSERT INTO Users (username, email, password_hash, bio, profile_picture_url, is_private)
                 VALUES (:username, :email, :password_hash, :bio, :profile_picture_url, :is_private)
-                RETURNING user_id, username, email, password_hash, bio, profile_picture_url, is_private, created_at
+                RETURNING user_id, username, email, password_hash, bio, profile_picture_url, is_private, created_at, updated_at
             """)
             
             result = self.db.session.execute(query, {
@@ -65,7 +65,7 @@ class UserRepository:
                     profile_picture_url = :profile_picture_url,
                     is_private = :is_private
                 WHERE user_id = :user_id
-                RETURNING user_id, username, email, password_hash, bio, profile_picture_url, is_private, created_at
+                RETURNING user_id, username, email, password_hash, bio, profile_picture_url, is_private, created_at, updated_at
             """)
             
             result = self.db.session.execute(query, {

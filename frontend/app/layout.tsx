@@ -2,9 +2,9 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
-import { AuthProvider } from "@/lib/auth-context"
 import { Navbar } from "@/components/layout/navbar"
 import { Toaster } from "@/components/ui/toaster"
+import { AuthProvider } from "@/lib/auth-context"
 
 export const metadata: Metadata = {
   title: "SocialHub - Connect, Share, Build Communities",
@@ -35,8 +35,8 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body className={`font-sans antialiased`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <Navbar />
           {children}
