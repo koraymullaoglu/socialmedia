@@ -1,8 +1,8 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Calendar, Lock, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Users, Calendar, Lock } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 // TODO: Phase 2 - Implement full profile functionality
 export default function ProfilePage({ params }: { params: { username: string } }) {

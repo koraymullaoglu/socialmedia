@@ -13,7 +13,7 @@ class CommentRepository:
         query = text("""
             INSERT INTO Comments (post_id, user_id, content, parent_comment_id)
             VALUES (:post_id, :user_id, :content, :parent_comment_id)
-            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at
+            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at, updated_at
         """)
         
         result = self.db.session.execute(query, {
@@ -70,7 +70,7 @@ class CommentRepository:
             UPDATE Comments 
             SET content = :content
             WHERE comment_id = :comment_id
-            RETURNING comment_id, post_id, user_id, content, created_at
+            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at, updated_at
         """)
         
         result = self.db.session.execute(query, {

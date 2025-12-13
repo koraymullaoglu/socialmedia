@@ -2,8 +2,8 @@
 
 import { useEffect } from "react"
 import { useSearchParams } from "next/navigation"
-import { Hero } from "@/components/layout/hero"
 import { Footer } from "@/components/layout/footer"
+import { Hero } from "@/components/layout/hero"
 import { useToast } from "@/hooks/use-toast"
 
 export default function Home() {

@@ -64,10 +64,11 @@ class User:
     profile_picture_url: Optional[str] = None
     is_private: bool = False
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @classmethod
     def from_row(cls, row) -> Optional['User']:
-        if row is None:
+        if not row:
             return None
         return cls(
             user_id=row.user_id,
@@ -77,7 +78,8 @@ class User:
             bio=row.bio,
             profile_picture_url=row.profile_picture_url,
             is_private=row.is_private,
-            created_at=row.created_at
+            created_at=row.created_at,
+            updated_at=getattr(row, 'updated_at', None)
         )
 
     def to_dict(self, include_sensitive: bool = False) -> Dict[str, Any]:
@@ -89,7 +91,8 @@ class User:
             "bio": self.bio,
             "profile_picture_url": self.profile_picture_url,
             "is_private": self.is_private,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
         if include_sensitive:
             data["password_hash"] = self.password_hash
@@ -116,10 +119,11 @@ class Post:
     content: Optional[str] = None
     media_url: Optional[str] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @classmethod
     def from_row(cls, row) -> Optional['Post']:
-        if row is None:
+        if not row:
             return None
         return cls(
             post_id=row.post_id,
@@ -127,7 +131,8 @@ class Post:
             community_id=row.community_id,
             content=row.content,
             media_url=row.media_url,
-            created_at=row.created_at
+            created_at=row.created_at,
+            updated_at=getattr(row, 'updated_at', None)
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -137,7 +142,8 @@ class Post:
             "community_id": self.community_id,
             "content": self.content,
             "media_url": self.media_url,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
     def validate(self) -> List[str]:
@@ -183,18 +189,20 @@ class Comment:
     content: Optional[str] = None
     parent_comment_id: Optional[int] = None
     created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
     @classmethod
     def from_row(cls, row) -> Optional['Comment']:
-        if row is None:
+        if not row:
             return None
         return cls(
             comment_id=row.comment_id,
             post_id=row.post_id,
             user_id=row.user_id,
             content=row.content,
-            parent_comment_id=getattr(row, 'parent_comment_id', None),
-            created_at=row.created_at
+            parent_comment_id=row.parent_comment_id,
+            created_at=row.created_at,
+            updated_at=getattr(row, 'updated_at', None)
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -204,7 +212,8 @@ class Comment:
             "user_id": self.user_id,
             "content": self.content,
             "parent_comment_id": self.parent_comment_id,
-            "created_at": self.created_at.isoformat() if self.created_at else None
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
 
     def validate(self) -> List[str]:
@@ -357,3 +366,49 @@ class Message:
         if self.content and len(self.content) > 5000:
             errors.append("Message must be at most 5000 characters")
         return errors
+
+
+@dataclass
+class AuditLog:
+    """AuditLog model for database audit trails"""
+    audit_id: Optional[int] = None
+    table_name: Optional[str] = None
+    operation: Optional[str] = None
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    record_data: Optional[Dict[str, Any]] = None
+    deleted_at: Optional[datetime] = None
+    deleted_by: Optional[int] = None
+    reason: Optional[str] = None
+
+    @classmethod
+    def from_row(cls, row) -> Optional['AuditLog']:
+        if not row:
+            return None
+        return cls(
+            audit_id=row.audit_id,
+            table_name=row.table_name,
+            operation=row.operation,
+            user_id=row.user_id,
+            username=row.username,
+            email=row.email,
+            record_data=row.record_data,
+            deleted_at=row.deleted_at,
+            deleted_by=row.deleted_by,
+            reason=row.reason
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "audit_id": self.audit_id,
+            "table_name": self.table_name,
+            "operation": self.operation,
+            "user_id": self.user_id,
+            "username": self.username,
+            "email": self.email,
+            "record_data": self.record_data,
+            "deleted_at": self.deleted_at.isoformat() if self.deleted_at else None,
+            "deleted_by": self.deleted_by,
+            "reason": self.reason
+        }
