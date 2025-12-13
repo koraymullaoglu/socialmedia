@@ -301,15 +301,55 @@ class PostRepository:
         return posts_with_stats
 
     def get_feed_with_stats(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict]:
-        """Get feed posts with engagement metrics (accepted follows only)"""
+        """Get feed posts with engagement metrics (accepted follows only)
+        
+        OPTIMIZED: Single query with JOINs to avoid N+1 problem
+        - Fetches user info with JOIN (not separate queries)
+        - Batches like counts with subquery
+        - Batches comment counts with subquery
+        """
         query = text("""
             SELECT 
-                v.post_id, v.author_id as user_id, v.community_id, v.content, v.media_url, v.created_at, v.updated_at,
-                v.like_count, v.comment_count,
-                EXISTS(SELECT 1 FROM PostLikes pl WHERE pl.post_id = v.post_id AND pl.user_id = :user_id) as liked_by_user
-            FROM user_feed_view v
-            WHERE v.viewing_user_id = :user_id
-            ORDER BY v.created_at DESC 
+                p.post_id,
+                p.user_id,
+                p.community_id,
+                p.content,
+                p.media_url,
+                p.created_at,
+                p.updated_at,
+                -- User info (JOIN - no N+1)
+                u.username,
+                u.profile_picture_url,
+                u.is_private,
+                -- Community info (JOIN)
+                c.name as community_name,
+                -- Engagement metrics (batched subqueries - no N+1)
+                COALESCE(lc.like_count, 0) as like_count,
+                COALESCE(cc.comment_count, 0) as comment_count,
+                -- User interaction
+                EXISTS(
+                    SELECT 1 FROM PostLikes pl 
+                    WHERE pl.post_id = p.post_id AND pl.user_id = :user_id
+                ) as liked_by_user
+            FROM Posts p
+            INNER JOIN Follows f ON p.user_id = f.following_id
+            INNER JOIN Users u ON p.user_id = u.user_id
+            LEFT JOIN Communities c ON p.community_id = c.community_id
+            -- Batch like counts with subquery
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) as like_count
+                FROM PostLikes
+                GROUP BY post_id
+            ) lc ON p.post_id = lc.post_id
+            -- Batch comment counts with subquery
+            LEFT JOIN (
+                SELECT post_id, COUNT(*) as comment_count
+                FROM Comments
+                GROUP BY post_id
+            ) cc ON p.post_id = cc.post_id
+            WHERE f.follower_id = :user_id 
+                AND f.status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')
+            ORDER BY p.created_at DESC 
             LIMIT :limit OFFSET :offset
         """)
         
@@ -321,9 +361,18 @@ class PostRepository:
         
         posts_with_stats = []
         for row in result.fetchall():
-            post = Post.from_row(row)
             posts_with_stats.append({
-                **post.to_dict(),
+                'post_id': row.post_id,
+                'user_id': row.user_id,
+                'username': row.username,
+                'profile_picture_url': row.profile_picture_url,
+                'is_private': row.is_private,
+                'community_id': row.community_id,
+                'community_name': row.community_name,
+                'content': row.content,
+                'media_url': row.media_url,
+                'created_at': row.created_at,
+                'updated_at': row.updated_at,
                 'like_count': row.like_count,
                 'comment_count': row.comment_count,
                 'liked_by_user': row.liked_by_user

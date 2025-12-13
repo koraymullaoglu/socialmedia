@@ -148,20 +148,26 @@ class PostService:
         return {"success": False, "error": "Failed to delete post"}
 
     def get_feed(self, user_id: int, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
-        """Get authenticated user's feed with engagement metrics (posts from accepted follows only)"""
-        # Use the new feed method with stats
+        """Get authenticated user's feed with engagement metrics (posts from accepted follows only)
+        
+        OPTIMIZED: No N+1 queries
+        - User info fetched in single query with JOIN
+        - Privacy filtering done in single pass (no additional queries)
+        """
+        # Use the optimized feed method - includes user info in single query
         posts = self.post_repository.get_feed_with_stats(user_id, limit, offset)
         
-        # Filter posts based on privacy (extra security layer)
+        # Filter posts based on privacy (already have user info, no extra queries)
         filtered_posts = []
         for post_dict in posts:
-            post_author = self.user_repository.get_by_id(post_dict['user_id'])
-            if post_author:
-                # Include if: own post, public user, or accepted follow
-                if (post_dict['user_id'] == user_id or 
-                    not post_author.is_private or 
-                    self._is_accepted_follower(user_id, post_dict['user_id'])):
-                    filtered_posts.append(post_dict)
+            # User info already fetched with JOIN - no additional query
+            is_private = post_dict.get('is_private', False)
+            post_user_id = post_dict['user_id']
+            
+            # Include if: own post, public user, or accepted follow (already verified in query)
+            if post_user_id == user_id or not is_private:
+                # Accepted follow already verified by query JOIN condition
+                filtered_posts.append(post_dict)
         
         return {
             "posts": filtered_posts,
