@@ -89,7 +89,8 @@ CREATE TABLE Users (
     is_private BOOLEAN DEFAULT FALSE,
     search_vector tsvector,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_users_email_format CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$')
 );
 
 CREATE TABLE Communities (
@@ -146,7 +147,8 @@ CREATE TABLE Posts (
     media_url TEXT,
     search_vector tsvector,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_posts_content_or_media CHECK ((content IS NOT NULL AND content != '') OR (media_url IS NOT NULL AND media_url != ''))
 );
 
 CREATE TABLE Comments (
@@ -156,7 +158,8 @@ CREATE TABLE Comments (
     content TEXT NOT NULL,
     parent_comment_id INT REFERENCES Comments(comment_id) ON DELETE CASCADE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_comments_min_length CHECK (LENGTH(TRIM(content)) >= 1)
 );
 
 CREATE TABLE PostLikes (
@@ -173,7 +176,8 @@ CREATE TABLE Messages (
     content TEXT,
     media_url TEXT,
     is_read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_messages_different_users CHECK (sender_id != receiver_id)
 );
 
 -- ============================================
@@ -318,6 +322,367 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ============================================
+-- TRANSACTIONS & ATOMICITY
+-- ============================================
+
+-- Function: Create Community with Admin (Atomic)
+CREATE OR REPLACE FUNCTION create_community_with_admin(
+    p_creator_id INT,
+    p_community_name VARCHAR(100),
+    p_description TEXT,
+    p_is_private BOOLEAN DEFAULT FALSE
+)
+RETURNS TABLE (
+    community_id INT,
+    creator_id INT,
+    community_name VARCHAR(100),
+    member_id INT,
+    role_name VARCHAR(20),
+    status VARCHAR(20)
+) AS $$
+DECLARE
+    v_community_id INT;
+    v_admin_role_id INT;
+    v_privacy_id INT;
+BEGIN
+    SELECT r.role_id INTO v_admin_role_id 
+    FROM Roles r
+    WHERE r.role_name = 'admin';
+    
+    IF v_admin_role_id IS NULL THEN
+        RAISE EXCEPTION 'Admin role not found';
+    END IF;
+    
+    SELECT privacy_id INTO v_privacy_id
+    FROM PrivacyTypes
+    WHERE privacy_name = CASE WHEN p_is_private THEN 'private' ELSE 'public' END;
+    
+    INSERT INTO Communities (creator_id, name, description, privacy_id)
+    VALUES (p_creator_id, p_community_name, p_description, v_privacy_id)
+    RETURNING Communities.community_id INTO v_community_id;
+    
+    INSERT INTO CommunityMembers (community_id, user_id, role_id)
+    VALUES (v_community_id, p_creator_id, v_admin_role_id);
+    
+    -- Return the results
+    RETURN QUERY
+    SELECT 
+        c.community_id,
+        c.creator_id,
+        c.name AS community_name,
+        cm.user_id AS member_id,
+        r.role_name,
+        'success'::VARCHAR(20) AS status
+    FROM Communities c
+    JOIN CommunityMembers cm ON c.community_id = cm.community_id
+    JOIN Roles r ON cm.role_id = r.role_id
+    WHERE c.community_id = v_community_id;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
+-- CTE (COMMON TABLE EXPRESSIONS) FUNCTIONS
+-- ============================================
+
+-- Function: Get comment thread
+CREATE OR REPLACE FUNCTION get_comment_thread(root_post_id INTEGER)
+RETURNS TABLE (
+    comment_id INTEGER,
+    parent_comment_id INTEGER,
+    user_id INTEGER,
+    username VARCHAR,
+    content TEXT,
+    created_at TIMESTAMP,
+    depth INTEGER,
+    path INTEGER[],
+    thread_position TEXT
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH RECURSIVE comment_tree AS (
+        SELECT 
+            c.comment_id,
+            c.parent_comment_id,
+            c.user_id,
+            u.username,
+            c.content,
+            c.created_at,
+            0 AS depth,
+            ARRAY[c.comment_id] AS path,
+            c.comment_id::TEXT AS thread_position
+        FROM Comments c
+        INNER JOIN Users u ON c.user_id = u.user_id
+        WHERE c.post_id = root_post_id 
+          AND c.parent_comment_id IS NULL
+        
+        UNION ALL
+        
+        SELECT 
+            c.comment_id,
+            c.parent_comment_id,
+            c.user_id,
+            u.username,
+            c.content,
+            c.created_at,
+            ct.depth + 1,
+            ct.path || c.comment_id,
+            ct.thread_position || '.' || ROW_NUMBER() OVER (
+                PARTITION BY c.parent_comment_id 
+                ORDER BY c.created_at
+            )::TEXT
+        FROM Comments c
+        INNER JOIN Users u ON c.user_id = u.user_id
+        INNER JOIN comment_tree ct ON c.parent_comment_id = ct.comment_id
+        WHERE ct.depth < 10
+    )
+    SELECT 
+        ct.comment_id,
+        ct.parent_comment_id,
+        ct.user_id,
+        ct.username,
+        ct.content,
+        ct.created_at,
+        ct.depth,
+        ct.path,
+        ct.thread_position
+    FROM comment_tree ct
+    ORDER BY ct.path;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Get comment ancestors
+CREATE OR REPLACE FUNCTION get_comment_ancestors(target_comment_id INTEGER)
+RETURNS TABLE (
+    comment_id INTEGER,
+    parent_comment_id INTEGER,
+    user_id INTEGER,
+    username VARCHAR,
+    content TEXT,
+    depth INTEGER
+) AS $$
+BEGIN
+    RETURN QUERY
+    WITH RECURSIVE ancestors AS (
+        SELECT 
+            c.comment_id,
+            c.parent_comment_id,
+            c.user_id,
+            u.username,
+            c.content,
+            0 AS depth
+        FROM Comments c
+        INNER JOIN Users u ON c.user_id = u.user_id
+        WHERE c.comment_id = target_comment_id
+        
+        UNION ALL
+        
+        SELECT 
+            c.comment_id,
+            c.parent_comment_id,
+            c.user_id,
+            u.username,
+            c.content,
+            a.depth + 1
+        FROM Comments c
+        INNER JOIN Users u ON c.user_id = u.user_id
+        INNER JOIN ancestors a ON c.comment_id = a.parent_comment_id
+    )
+    SELECT * FROM ancestors
+    ORDER BY depth DESC;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Get friend-of-friend recommendations
+CREATE OR REPLACE FUNCTION get_friend_of_friend_recommendations(target_user_id INTEGER)
+RETURNS TABLE (
+    recommended_user INTEGER,
+    username VARCHAR,
+    mutual_friends INTEGER,
+    connection_strength NUMERIC
+) AS $$
+DECLARE
+    v_accepted_id INT;
+BEGIN
+    SELECT status_id INTO v_accepted_id FROM FollowStatus WHERE status_name = 'accepted';
+
+    RETURN QUERY
+    WITH 
+    my_friends AS (
+        SELECT following_id AS friend_id
+        FROM Follows
+        WHERE follower_id = target_user_id
+          AND status_id = v_accepted_id
+    ),
+    friends_of_friends AS (
+        SELECT DISTINCT
+            f.following_id AS potential_friend,
+            mf.friend_id AS mutual_friend
+        FROM my_friends mf
+        INNER JOIN Follows f ON f.follower_id = mf.friend_id
+        WHERE f.status_id = v_accepted_id
+          AND f.following_id != target_user_id
+          AND f.following_id NOT IN (SELECT friend_id FROM my_friends)
+    ),
+    mutual_counts AS (
+        SELECT 
+            potential_friend,
+            COUNT(DISTINCT mutual_friend) AS mutual_count
+        FROM friends_of_friends
+        GROUP BY potential_friend
+    ),
+    scored_recommendations AS (
+        SELECT 
+            mc.potential_friend,
+            u.username,
+            mc.mutual_count,
+            (
+                mc.mutual_count * 10.0 +
+                COALESCE((SELECT COUNT(*) FROM Posts WHERE user_id = mc.potential_friend), 0) * 0.5 +
+                COALESCE((SELECT COUNT(*) FROM Follows WHERE following_id = mc.potential_friend AND status_id = v_accepted_id), 0) * 0.1
+            ) AS strength
+        FROM mutual_counts mc
+        INNER JOIN Users u ON u.user_id = mc.potential_friend
+    )
+    SELECT 
+        potential_friend,
+        username,
+        mutual_count,
+        ROUND(strength, 2) AS connection_strength
+    FROM scored_recommendations
+    ORDER BY strength DESC, mutual_count DESC
+    LIMIT 50;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Get social network distance
+CREATE OR REPLACE FUNCTION get_social_network_distance(from_user_id INTEGER, to_user_id INTEGER)
+RETURNS INTEGER AS $$
+DECLARE
+    shortest_distance INTEGER;
+    v_accepted_id INT;
+BEGIN
+    SELECT status_id INTO v_accepted_id FROM FollowStatus WHERE status_name = 'accepted';
+
+    WITH RECURSIVE social_path AS (
+        SELECT 
+            following_id AS user_node,
+            1 AS distance,
+            ARRAY[from_user_id, following_id] AS path_users
+        FROM Follows
+        WHERE follower_id = from_user_id
+          AND status_id = v_accepted_id
+        
+        UNION ALL
+        
+        SELECT 
+            f.following_id,
+            sp.distance + 1,
+            sp.path_users || f.following_id
+        FROM social_path sp
+        INNER JOIN Follows f ON f.follower_id = sp.user_node
+        WHERE f.status_id = v_accepted_id
+          AND sp.distance < 6
+          AND NOT (f.following_id = ANY(sp.path_users))
+    )
+    SELECT MIN(distance) INTO shortest_distance
+    FROM social_path
+    WHERE user_node = to_user_id;
+    
+    RETURN shortest_distance;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function: Compare query performance
+CREATE OR REPLACE FUNCTION compare_query_performance()
+RETURNS TABLE (
+    approach VARCHAR,
+    execution_time_ms NUMERIC,
+    result_count INTEGER,
+    notes TEXT
+) AS $$
+DECLARE
+    start_time TIMESTAMP;
+    end_time TIMESTAMP;
+    cte_time NUMERIC;
+    subquery_time NUMERIC;
+    temp_time NUMERIC;
+    row_count INTEGER;
+BEGIN
+    -- Method 1: CTE
+    start_time := clock_timestamp();
+    
+    WITH user_activity AS (
+        SELECT 
+            u.user_id,
+            u.username,
+            COUNT(DISTINCT p.post_id) AS post_count,
+            COUNT(DISTINCT c.comment_id) AS comment_count
+        FROM Users u
+        LEFT JOIN Posts p ON p.user_id = u.user_id
+        LEFT JOIN Comments c ON c.user_id = u.user_id
+        GROUP BY u.user_id, u.username
+    )
+    SELECT COUNT(*) INTO row_count
+    FROM user_activity
+    WHERE post_count > 0 OR comment_count > 0;
+    
+    end_time := clock_timestamp();
+    cte_time := EXTRACT(EPOCH FROM (end_time - start_time)) * 1000;
+    
+    RETURN QUERY SELECT 'CTE'::VARCHAR, ROUND(cte_time, 2), row_count, 'Most readable, good for complex queries'::TEXT;
+    
+    -- Method 2: Subquery
+    start_time := clock_timestamp();
+    
+    SELECT COUNT(*) INTO row_count
+    FROM (
+        SELECT 
+            u.user_id,
+            u.username,
+            COUNT(DISTINCT p.post_id) AS post_count,
+            COUNT(DISTINCT c.comment_id) AS comment_count
+        FROM Users u
+        LEFT JOIN Posts p ON p.user_id = u.user_id
+        LEFT JOIN Comments c ON c.user_id = u.user_id
+        GROUP BY u.user_id, u.username
+    ) user_activity
+    WHERE post_count > 0 OR comment_count > 0;
+    
+    end_time := clock_timestamp();
+    subquery_time := EXTRACT(EPOCH FROM (end_time - start_time)) * 1000;
+    
+    RETURN QUERY SELECT 'Subquery'::VARCHAR, ROUND(subquery_time, 2), row_count, 'Sometimes optimized better, less readable'::TEXT;
+    
+    -- Method 3: Temporary Table
+    start_time := clock_timestamp();
+    
+    CREATE TEMP TABLE temp_user_activity AS
+    SELECT 
+        u.user_id,
+        u.username,
+        COUNT(DISTINCT p.post_id) AS post_count,
+        COUNT(DISTINCT c.comment_id) AS comment_count
+    FROM Users u
+    LEFT JOIN Posts p ON p.user_id = u.user_id
+    LEFT JOIN Comments c ON c.user_id = u.user_id
+    GROUP BY u.user_id, u.username;
+    
+    SELECT COUNT(*) INTO row_count
+    FROM temp_user_activity
+    WHERE post_count > 0 OR comment_count > 0;
+    
+    DROP TABLE temp_user_activity;
+    
+    end_time := clock_timestamp();
+    temp_time := EXTRACT(EPOCH FROM (end_time - start_time)) * 1000;
+    
+    RETURN QUERY SELECT 'Temp Table'::VARCHAR, ROUND(temp_time, 2), row_count, 'Best for reuse, overhead for creation'::TEXT;
+    
+    RETURN;
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================
 -- 8. TRIGGERS
 -- ============================================
 
@@ -410,6 +775,205 @@ LEFT JOIN (SELECT p.community_id, COUNT(pl.*) AS total_likes, COUNT(DISTINCT co.
 ORDER BY total_members DESC;
 
 -- ============================================
+-- WINDOW FUNCTION VIEWS
+-- ============================================
+
+-- View: User Post Sequence
+CREATE OR REPLACE VIEW user_post_sequence AS
+SELECT
+    user_id,
+    post_id,
+    content,
+    created_at,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at ASC) AS post_sequence_number,
+    ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) AS post_reverse_sequence
+FROM Posts;
+
+-- View: Daily Post Cumulative
+CREATE OR REPLACE VIEW daily_post_cumulative AS
+SELECT
+    user_id,
+    DATE(created_at) AS post_date,
+    COUNT(*) OVER (PARTITION BY user_id) AS total_posts_by_user,
+    COUNT(*) AS daily_post_count,
+    SUM(COUNT(*)) OVER (PARTITION BY user_id ORDER BY DATE(created_at) ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS cumulative_posts,
+    ROUND(SUM(COUNT(*)) OVER (PARTITION BY user_id ORDER BY DATE(created_at) ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)::NUMERIC / (ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY DATE(created_at))), 2) AS average_posts_per_day
+FROM Posts
+GROUP BY user_id, DATE(created_at);
+
+-- View: User Activity Ranking
+CREATE OR REPLACE VIEW user_activity_ranking AS
+SELECT
+    user_id,
+    username,
+    total_posts,
+    RANK() OVER (ORDER BY total_posts DESC) AS post_rank,
+    DENSE_RANK() OVER (ORDER BY total_posts DESC) AS post_dense_rank,
+    PERCENT_RANK() OVER (ORDER BY total_posts DESC) AS post_percentile,
+    CUME_DIST() OVER (ORDER BY total_posts DESC) AS cumulative_distribution,
+    NTILE(4) OVER (ORDER BY total_posts DESC) AS activity_quartile
+FROM (
+    SELECT
+        u.user_id,
+        u.username,
+        COUNT(p.post_id) AS total_posts
+    FROM Users u
+    LEFT JOIN Posts p ON u.user_id = p.user_id
+    GROUP BY u.user_id, u.username
+) user_activity;
+
+-- View: Post Comparison Analysis
+CREATE OR REPLACE VIEW post_comparison_analysis AS
+SELECT
+    user_id,
+    post_id,
+    content,
+    created_at,
+    LAG(post_id, 1) OVER (PARTITION BY user_id ORDER BY created_at) AS previous_post_id,
+    LAG(created_at, 1) OVER (PARTITION BY user_id ORDER BY created_at) AS previous_post_time,
+    LEAD(post_id, 1) OVER (PARTITION BY user_id ORDER BY created_at) AS next_post_id,
+    LEAD(created_at, 1) OVER (PARTITION BY user_id ORDER BY created_at) AS next_post_time,
+    EXTRACT(HOUR FROM created_at - LAG(created_at, 1) OVER (PARTITION BY user_id ORDER BY created_at)) AS hours_since_previous,
+    EXTRACT(HOUR FROM LEAD(created_at, 1) OVER (PARTITION BY user_id ORDER BY created_at) - created_at) AS hours_until_next,
+    LAG(post_id, 2) OVER (PARTITION BY user_id ORDER BY created_at) AS post_2_back,
+    LEAD(post_id, 2) OVER (PARTITION BY user_id ORDER BY created_at) AS post_2_ahead
+FROM Posts;
+
+-- View: Posting Consistency Metrics
+CREATE OR REPLACE VIEW posting_consistency_metrics AS
+SELECT
+    user_id,
+    username,
+    post_count,
+    ROUND((EXTRACT(EPOCH FROM (last_post - first_post)) / 3600 / NULLIF(post_count - 1, 0))::numeric, 2) AS avg_hours_between_posts,
+    ROUND(STDDEV(hours_gap)::NUMERIC, 2) AS posting_consistency_score,
+    ROUND(post_count::NUMERIC / NULLIF(EXTRACT(DAY FROM (last_post - first_post)) + 1, 0), 2) AS posts_per_day,
+    RANK() OVER (ORDER BY STDDEV(hours_gap) ASC NULLS LAST) AS consistency_rank
+FROM (
+    SELECT
+        u.user_id,
+        u.username,
+        COUNT(p.post_id) OVER (PARTITION BY u.user_id) AS post_count,
+        MIN(p.created_at) OVER (PARTITION BY u.user_id) AS first_post,
+        MAX(p.created_at) OVER (PARTITION BY u.user_id) AS last_post,
+        EXTRACT(HOUR FROM p.created_at - LAG(p.created_at) OVER (PARTITION BY u.user_id ORDER BY p.created_at)) AS hours_gap
+    FROM Users u
+    LEFT JOIN Posts p ON u.user_id = p.user_id
+) consistency_data
+WHERE post_count > 1
+GROUP BY user_id, username, post_count, first_post, last_post;
+
+-- View: Post Engagement Trends
+CREATE OR REPLACE VIEW post_engagement_trends AS
+SELECT
+    user_id,
+    post_id,
+    created_at,
+    like_count,
+    LAG(like_count, 1, 0) OVER (PARTITION BY user_id ORDER BY created_at) AS previous_like_count,
+    like_count - LAG(like_count, 1, 0) OVER (PARTITION BY user_id ORDER BY created_at) AS engagement_change,
+    ROUND(AVG(like_count) OVER (PARTITION BY user_id ORDER BY created_at ROWS BETWEEN 2 PRECEDING AND CURRENT ROW), 2) AS moving_avg_likes_3post,
+    ROUND((PERCENT_RANK() OVER (PARTITION BY user_id ORDER BY like_count) * 100)::numeric, 2) AS like_percentile_by_user
+FROM (
+    SELECT
+        p.user_id,
+        p.post_id,
+        p.created_at,
+        COUNT(pl.user_id) AS like_count
+    FROM Posts p
+    LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+    GROUP BY p.post_id, p.user_id, p.created_at
+) post_engagement;
+
+-- ============================================
+-- CTE VIEWS
+-- ============================================
+
+-- View: Comment threads with metrics
+CREATE OR REPLACE VIEW comment_thread_with_metrics AS
+WITH RECURSIVE comment_metrics AS (
+    SELECT 
+        c.comment_id,
+        c.post_id,
+        c.parent_comment_id,
+        c.user_id,
+        c.content,
+        c.created_at,
+        0 AS depth,
+        1 AS reply_count,
+        ARRAY[c.comment_id] AS path
+    FROM Comments c
+    WHERE c.parent_comment_id IS NULL
+    
+    UNION ALL
+    
+    SELECT 
+        c.comment_id,
+        c.post_id,
+        c.parent_comment_id,
+        c.user_id,
+        c.content,
+        c.created_at,
+        cm.depth + 1,
+        cm.reply_count + 1,
+        cm.path || c.comment_id
+    FROM Comments c
+    INNER JOIN comment_metrics cm ON c.parent_comment_id = cm.comment_id
+    WHERE cm.depth < 10
+)
+SELECT 
+    cm.comment_id,
+    cm.post_id,
+    cm.parent_comment_id,
+    u.username,
+    cm.content,
+    cm.created_at,
+    cm.depth,
+    COUNT(*) OVER (PARTITION BY cm.path[1]) AS thread_size,
+    MAX(cm.depth) OVER (PARTITION BY cm.path[1]) AS max_thread_depth
+FROM comment_metrics cm
+INNER JOIN Users u ON cm.user_id = u.user_id;
+
+-- View: Advanced friend recommendations
+CREATE OR REPLACE VIEW advanced_friend_recommendations AS
+WITH user_friends AS (
+    SELECT 
+        f.follower_id AS user_id,
+        f.following_id AS friend_id
+    FROM Follows f
+    WHERE f.status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')
+),
+friend_suggestions AS (
+    SELECT DISTINCT
+        uf1.user_id,
+        uf2.friend_id AS suggested_friend,
+        COUNT(DISTINCT uf1.friend_id) AS mutual_count
+    FROM user_friends uf1
+    INNER JOIN user_friends uf2 ON uf1.friend_id = uf2.user_id
+    WHERE uf2.friend_id != uf1.user_id
+      AND NOT EXISTS (
+          SELECT 1 FROM user_friends uf3
+          WHERE uf3.user_id = uf1.user_id
+            AND uf3.friend_id = uf2.friend_id
+      )
+    GROUP BY uf1.user_id, uf2.friend_id
+)
+SELECT 
+    fs.user_id,
+    u.username AS suggested_username,
+    fs.mutual_count,
+    COALESCE((SELECT COUNT(*) FROM Posts WHERE user_id = fs.suggested_friend), 0) AS post_count,
+    COALESCE((SELECT COUNT(*) FROM Follows WHERE following_id = fs.suggested_friend AND status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')), 0) AS follower_count,
+    (
+        fs.mutual_count * 10.0 +
+        COALESCE((SELECT COUNT(*) FROM Posts WHERE user_id = fs.suggested_friend), 0) * 0.5 +
+        COALESCE((SELECT COUNT(*) FROM Follows WHERE following_id = fs.suggested_friend AND status_id = (SELECT status_id FROM FollowStatus WHERE status_name = 'accepted')), 0) * 0.1
+    ) AS recommendation_score
+FROM friend_suggestions fs
+INNER JOIN Users u ON u.user_id = fs.suggested_friend
+ORDER BY fs.user_id, recommendation_score DESC;
+
+-- ============================================
 -- 10. INDEXES
 -- ============================================
 
@@ -432,9 +996,23 @@ CREATE INDEX idx_audit_log_table_operation ON AuditLog(table_name, operation);
 CREATE INDEX idx_audit_log_user_id ON AuditLog(user_id);
 CREATE INDEX idx_audit_log_deleted_at ON AuditLog(deleted_at);
 
+-- Message Indexes
+CREATE INDEX idx_messages_sender_id ON Messages(sender_id);
+CREATE INDEX idx_messages_receiver_id ON Messages(receiver_id);
+CREATE INDEX idx_messages_unread ON Messages(receiver_id) WHERE is_read = FALSE;
+
 -- GIN Indexes for Search
 CREATE INDEX idx_posts_search_vector ON Posts USING GIN(search_vector);
 CREATE INDEX idx_users_search_vector ON Users USING GIN(search_vector);
+
+-- Window Function Indexes
+CREATE INDEX IF NOT EXISTS idx_posts_user_created ON Posts(user_id, created_at);
+-- idx_post_likes_post_id already exists as idx_postlikes_post_id
+CREATE INDEX IF NOT EXISTS idx_postlikes_user_id ON PostLikes(user_id);
+
+-- CTE Indexes
+CREATE INDEX IF NOT EXISTS idx_comments_parent_post ON Comments(parent_comment_id, post_id);
+CREATE INDEX IF NOT EXISTS idx_follows_status ON Follows(status_id, following_id);
 
 -- ============================================
 -- 11. INITIAL SEED DATA

@@ -27,18 +27,8 @@ class CommunityService:
         # Create the community
         created_community = self.community_repository.create(community)
         
-        # Automatically add creator as admin (role_id=1)
-        if created_community and created_community.community_id:
-            try:
-                self.community_repository.add_member(
-                    created_community.community_id,
-                    creator_id,
-                    role_id=1  # admin role
-                )
-            except Exception as e:
-                # If adding creator as admin fails, we should delete the community
-                self.community_repository.delete(created_community.community_id)
-                raise ValueError(f"Failed to add creator as admin: {str(e)}")
+        # Creator is automatically added as admin by the atomic stored procedure
+        pass
         
         return created_community
     

@@ -168,6 +168,16 @@ class PostService:
             "limit": limit,
             "offset": offset
         }
+    
+    def get_discover_feed(self, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """Get popular posts for discovery"""
+        posts = self.post_repository.get_popular(limit, offset)
+        
+        return {
+            "posts": posts,
+            "limit": limit,
+            "offset": offset
+        }
 
     def like_post(self, post_id: int, user_id: int) -> Dict[str, Any]:
         """Like a post with validation"""

@@ -16,21 +16,21 @@ def test_role():
     role = Role(role_id=1, role_name="admin")
     assert role.role_id == 1
     assert role.role_name == "admin"
-    print("✅ Role model OK")
+
 
 
 def test_privacy_type():
     privacy = PrivacyType(privacy_id=1, privacy_name="public")
     assert privacy.privacy_id == 1
     assert privacy.privacy_name == "public"
-    print("✅ PrivacyType model OK")
+
 
 
 def test_follow_status():
     status = FollowStatus(status_id=1, status_name="pending")
     assert status.status_id == 1
     assert status.status_name == "pending"
-    print("✅ FollowStatus model OK")
+
 
 
 def test_user():
@@ -48,7 +48,7 @@ def test_user():
     assert user.username == "testuser"
     assert user.email == "test@example.com"
     assert user.is_private == False
-    print("✅ User model OK")
+
 
 
 def test_post():
@@ -63,7 +63,7 @@ def test_post():
     assert post.post_id == 1
     assert post.user_id == 1
     assert post.content == "Test post content"
-    print("✅ Post model OK")
+
 
 
 def test_comment():
@@ -77,7 +77,7 @@ def test_comment():
     assert comment.comment_id == 1
     assert comment.post_id == 1
     assert comment.user_id == 1
-    print("✅ Comment model OK")
+
 
 
 def test_community():
@@ -92,7 +92,7 @@ def test_community():
     assert community.community_id == 1
     assert community.name == "Test Community"
     assert community.creator_id == 1
-    print("✅ Community model OK")
+
 
 
 def test_community_member():
@@ -105,7 +105,7 @@ def test_community_member():
     assert member.community_id == 1
     assert member.user_id == 1
     assert member.role_id == 1
-    print("✅ CommunityMember model OK")
+
 
 
 def test_follow():
@@ -118,7 +118,7 @@ def test_follow():
     assert follow.follower_id == 1
     assert follow.following_id == 2
     assert follow.status_id == 1
-    print("✅ Follow model OK")
+
 
 
 def test_message():
@@ -135,7 +135,6 @@ def test_message():
     assert message.sender_id == 1
     assert message.receiver_id == 2
     assert message.is_read == False
-    print("✅ Message model OK")
 
 
 def test_default_values():
@@ -146,11 +145,9 @@ def test_default_values():
     message = Message()
     assert message.is_read == False
     
-    print("✅ Default values OK")
 
 
 if __name__ == "__main__":
-    print("\n🧪 Testing Entity Models...\n")
     
     test_role()
     test_privacy_type()
@@ -163,5 +160,3 @@ if __name__ == "__main__":
     test_follow()
     test_message()
     test_default_values()
-    
-    print("\n✅ All entity tests passed!\n")

@@ -23,8 +23,10 @@ class TestCommunityRepository(BaseTest):
     def test_members(self):
         c = self.community_repo.create(Community(name="MembersTest", description="d", creator_id=self.user.user_id, privacy_id=1))
         
-        # Add creator as admin
-        self.community_repo.add_member(c.community_id, self.user.user_id, role_id=1)
+        # Creator should be admin automatically
+        creator_member = self.community_repo.get_member(c.community_id, self.user.user_id)
+        assert creator_member is not None
+        assert creator_member.role_id == 1
         
         # Add another user
         u2 = self.user_repo.create(User(username="u2", email="u2@t.com", password_hash="x"))

@@ -24,17 +24,21 @@ def reset_db():
             
         # Execute SQL content
         # We might need to handle transaction commit manually
-        trans = connection.begin()
+        # Execute SQL content using raw connection to avoid % escaping issues
+        raw_conn = engine.raw_connection()
         try:
-            connection.execute(text(sql_content))
-            trans.commit()
+            cursor = raw_conn.cursor()
+            cursor.execute(sql_content)
+            raw_conn.commit()
             print("Database reset successful!")
+            cursor.close()
         except Exception as e:
-            trans.rollback()
+            raw_conn.rollback()
             print(f"Error executing SQL: {e}")
             sys.exit(1)
         finally:
-            connection.close()
+            raw_conn.close()
+
             
     except Exception as e:
         print(f"Connection error: {e}")

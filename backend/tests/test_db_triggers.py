@@ -44,12 +44,12 @@ class TestDatabaseTriggers(unittest.TestCase):
             db.session.execute(text("DELETE FROM Users WHERE username LIKE 'trigger_test_%'"))
             db.session.commit()
         except Exception as e:
-            print(f"⚠️ Cleanup warning: {e}")
+
             db.session.rollback()
 
     def test_updated_at_trigger_for_users(self):
         """Test that updated_at is automatically set when user is updated"""
-        print("\n🧪 Testing updated_at trigger for Users...")
+
         
         # Create a test user
         query = text("""
@@ -90,11 +90,11 @@ class TestDatabaseTriggers(unittest.TestCase):
         # Verify updated_at changed
         self.assertNotEqual(original_updated_at, new_updated_at)
         self.assertGreater(new_updated_at, original_updated_at)
-        print("✅ updated_at trigger for Users works correctly")
+
 
     def test_updated_at_trigger_for_posts(self):
         """Test that updated_at is automatically set when post is updated"""
-        print("\n🧪 Testing updated_at trigger for Posts...")
+
         
         # Create a test user first
         query = text("""
@@ -147,11 +147,11 @@ class TestDatabaseTriggers(unittest.TestCase):
         # Verify updated_at changed
         self.assertNotEqual(original_updated_at, new_updated_at)
         self.assertGreater(new_updated_at, original_updated_at)
-        print("✅ updated_at trigger for Posts works correctly")
+
 
     def test_audit_log_trigger_on_user_deletion(self):
         """Test that user deletion is logged in AuditLog table"""
-        print("\n🧪 Testing audit log trigger for user deletion...")
+
         
         # Create a test user
         query = text("""
@@ -196,11 +196,11 @@ class TestDatabaseTriggers(unittest.TestCase):
         self.assertEqual(audit_row.table_name, "Users")
         self.assertEqual(audit_row.operation, "DELETE")
         self.assertEqual(audit_row.username, username)
-        print("✅ Audit log trigger works correctly")
+
 
     def test_cascade_cleanup_on_post_deletion(self):
         """Test that likes and comments are cleaned up when post is deleted"""
-        print("\n🧪 Testing cascade cleanup triggers...")
+
         
         # Create a test user
         query = text("""
@@ -270,11 +270,11 @@ class TestDatabaseTriggers(unittest.TestCase):
         
         self.assertEqual(likes_after, 0)
         self.assertEqual(comments_after, 0)
-        print("✅ Cascade cleanup triggers work correctly")
+
 
 
 if __name__ == '__main__':
-    print("\n" + "="*50)
-    print("TESTING DATABASE TRIGGERS")
-    print("="*50)
+
+
+
     unittest.main(verbosity=2)

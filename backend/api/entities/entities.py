@@ -74,7 +74,7 @@ class User:
             user_id=row.user_id,
             username=row.username,
             email=row.email,
-            password_hash=row.password_hash,
+            password_hash=getattr(row, 'password_hash', None),
             bio=row.bio,
             profile_picture_url=row.profile_picture_url,
             is_private=row.is_private,

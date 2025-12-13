@@ -105,6 +105,17 @@ def get_feed():
     return jsonify({"success": True, **result}), 200
 
 
+@post_bp.route('/posts/discover', methods=['GET'])
+@token_required
+def get_discover_feed():
+    """Get popular posts for discovery"""
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    result = post_service.get_discover_feed(limit, offset)
+    return jsonify({"success": True, **result}), 200
+
+
 @post_bp.route('/posts/<int:post_id>/like', methods=['POST'])
 @token_required
 def like_post(post_id):

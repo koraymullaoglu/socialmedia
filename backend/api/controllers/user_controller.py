@@ -145,6 +145,25 @@ def get_all_users():
         return make_response(jsonify({"error": str(e)}), 500)
 
 
+@user_bp.route('/users/recommendations', methods=['GET'])
+@token_required
+def get_recommendations():
+    """Get friend recommendations"""
+    try:
+        limit = request.args.get('limit', 10, type=int)
+        
+        recommendations = user_service.get_friend_recommendations(g.current_user_id, limit=limit)
+        
+        return make_response(jsonify({
+            "success": True, 
+            "recommendations": recommendations, 
+            "count": len(recommendations)
+        }), 200)
+
+    except Exception as e:
+        return make_response(jsonify({"error": str(e)}), 500)
+
+
 @user_bp.route('/users/search', methods=['GET'])
 @token_required
 def search_users():

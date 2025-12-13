@@ -12,24 +12,30 @@ class CommunityRepository:
     def create(self, community: Community) -> Community:
         """Create a new community in the database"""
         try:
-            query = text("""
-                INSERT INTO Communities (name, description, creator_id, privacy_id)
-                VALUES (:name, :description, :creator_id, :privacy_id)
-                RETURNING community_id, name, description, creator_id, privacy_id, created_at
-            """)
+            privacy_name = self.db.session.execute(
+                text("SELECT privacy_name FROM PrivacyTypes WHERE privacy_id = :pid"), 
+                {"pid": community.privacy_id}
+            ).scalar()
             
+            query = text("SELECT * FROM create_community_with_admin(:uid, :name, :desc, :is_private)")
             result = self.db.session.execute(query, {
+                "uid": community.creator_id,
                 "name": community.name,
-                "description": community.description,
-                "creator_id": community.creator_id,
-                "privacy_id": community.privacy_id
-            })
+                "desc": community.description,
+                "is_private": (privacy_name == 'private')
+            }).fetchone()
+            
             self.db.session.commit()
-            return Community.from_row(result.fetchone())
+            
+            if result:
+                return self.get_by_id(result.community_id)
+            else:
+                 raise SQLAlchemyError("Stored procedure returned no result")
+
         except IntegrityError:
             self.db.session.rollback()
             raise ValueError("Community name already exists")
-        except SQLAlchemyError:
+        except SQLAlchemyError as e:
             self.db.session.rollback()
             raise
     

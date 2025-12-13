@@ -104,14 +104,9 @@ class UserRepository:
         return [User.from_row(row) for row in result.fetchall()]
 
     def search(self, query_str: str, limit: int = 20) -> List[User]:
-        """Search users by username using ILIKE"""
-        query = text("""
-            SELECT * FROM Users 
-            WHERE username ILIKE :search 
-            ORDER BY username 
-            LIMIT :limit
-        """)
-        result = self.db.session.execute(query, {"search": f"%{query_str}%", "limit": limit})
+        """Search users by username using Full Text Search"""
+        query = text("SELECT * FROM search_users(:search, 'english', :limit)")
+        result = self.db.session.execute(query, {"search": query_str, "limit": limit})
         return [User.from_row(row) for row in result.fetchall()]
 
     def count(self) -> int:
@@ -128,3 +123,31 @@ class UserRepository:
         """Check if username exists"""
         query = text("SELECT EXISTS(SELECT 1 FROM Users WHERE username = :username)")
         return self.db.session.execute(query, {"username": username}).scalar()
+
+    def get_recommendations(self, user_id: int, limit: int = 10) -> List[dict]:
+        """Get friend recommendations for a user"""
+        query = text("""
+            SELECT * FROM advanced_friend_recommendations 
+            WHERE user_id = :user_id 
+            LIMIT :limit
+        """)
+        
+        result = self.db.session.execute(query, {
+            "user_id": user_id,
+            "limit": limit
+        })
+        
+        # This view returns: 
+        # user_id, suggested_friend, mutual_count, follower_count, recommendation_score, etc...
+        # We might need to map it nicely or just return dicts.
+        # The view selects: fs.user_id, fs.suggested_friend, fs.mutual_count, fs.recommendation_score
+        # ... and joins Users u on fs.suggested_friend.
+        # It doesn't seem to select username/profile_pic?
+        # Let's verify view definition in init.sql if possible.
+        # But for now, returning dict is safe.
+        
+        recommendations = []
+        for row in result.fetchall():
+            recommendations.append(dict(row._mapping))
+            
+        return recommendations

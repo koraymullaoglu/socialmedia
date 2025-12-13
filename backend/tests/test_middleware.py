@@ -34,7 +34,7 @@ class TestJWT(unittest.TestCase):
         self.assertIsNotNone(token)
         self.assertIsInstance(token, str)
         self.assertTrue(len(token) > 0)
-        print("✅ test_encode_token passed")
+
 
     def test_decode_token_valid(self):
         """Test decoding a valid JWT token"""
@@ -53,7 +53,7 @@ class TestJWT(unittest.TestCase):
         self.assertIsNotNone(decoded)
         self.assertEqual(decoded["user_id"], 1)
         self.assertEqual(decoded["username"], "testuser")
-        print("✅ test_decode_token_valid passed")
+
 
     def test_decode_token_expired(self):
         """Test decoding an expired JWT token"""
@@ -70,7 +70,7 @@ class TestJWT(unittest.TestCase):
 
         # Assert
         self.assertIsNone(decoded)
-        print("✅ test_decode_token_expired passed")
+
 
     def test_decode_token_invalid(self):
         """Test decoding an invalid JWT token"""
@@ -82,7 +82,7 @@ class TestJWT(unittest.TestCase):
 
         # Assert
         self.assertIsNone(decoded)
-        print("✅ test_decode_token_invalid passed")
+
 
     def test_decode_token_wrong_secret(self):
         """Test decoding a token signed with wrong secret"""
@@ -99,7 +99,7 @@ class TestJWT(unittest.TestCase):
 
         # Assert
         self.assertIsNone(decoded)
-        print("✅ test_decode_token_wrong_secret passed")
+
 
     def test_generate_token(self):
         """Test generating a token for a user"""
@@ -116,7 +116,7 @@ class TestJWT(unittest.TestCase):
         self.assertEqual(decoded["username"], "testuser")
         self.assertIn("exp", decoded)
         self.assertIn("iat", decoded)
-        print("✅ test_generate_token passed")
+
 
     def test_generate_token_no_role(self):
         """Test that generated token does not contain role"""
@@ -126,7 +126,7 @@ class TestJWT(unittest.TestCase):
         # Assert
         decoded = decode_token(token)
         self.assertNotIn("role", decoded)
-        print("✅ test_generate_token_no_role passed")
+
 
 
 class TestDecodeAuthToken(unittest.TestCase):
@@ -151,7 +151,7 @@ class TestDecodeAuthToken(unittest.TestCase):
             self.assertIsNotNone(payload)
             self.assertEqual(payload["user_id"], 1)
             self.assertEqual(payload["username"], "testuser")
-        print("✅ test_decode_auth_token_valid passed")
+
 
     def test_decode_auth_token_no_header(self):
         """Test decode_auth_token with no Authorization header"""
@@ -161,7 +161,7 @@ class TestDecodeAuthToken(unittest.TestCase):
 
             # Assert
             self.assertIsNone(payload)
-        print("✅ test_decode_auth_token_no_header passed")
+
 
     def test_decode_auth_token_no_bearer(self):
         """Test decode_auth_token without Bearer prefix"""
@@ -174,7 +174,7 @@ class TestDecodeAuthToken(unittest.TestCase):
 
             # Assert
             self.assertIsNone(payload)
-        print("✅ test_decode_auth_token_no_bearer passed")
+
 
     def test_decode_auth_token_invalid_token(self):
         """Test decode_auth_token with invalid token"""
@@ -184,7 +184,7 @@ class TestDecodeAuthToken(unittest.TestCase):
 
             # Assert
             self.assertIsNone(payload)
-        print("✅ test_decode_auth_token_invalid_token passed")
+
 
 
 class TestAuthorization(unittest.TestCase):
@@ -219,7 +219,7 @@ class TestAuthorization(unittest.TestCase):
         data = response.get_json()
         self.assertEqual(data["user_id"], 1)
         self.assertEqual(data["username"], "testuser")
-        print("✅ test_token_required_valid passed")
+
 
     @patch('api.middleware.authorization.decode_auth_token')
     def test_token_required_no_token(self, mock_decode):
@@ -242,7 +242,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         data = response.get_json()
         self.assertEqual(data["error"], "Unauthorized")
-        print("✅ test_token_required_no_token passed")
+
 
     @patch('api.middleware.authorization.decode_auth_token')
     def test_token_required_no_user_id(self, mock_decode):
@@ -265,7 +265,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         data = response.get_json()
         self.assertEqual(data["error"], "Unauthorized")
-        print("✅ test_token_required_no_user_id passed")
+
 
     @patch('api.middleware.authorization.decode_auth_token')
     def test_get_user_id_valid(self, mock_decode):
@@ -288,7 +288,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.get_json()
         self.assertEqual(data["user_id"], 42)
-        print("✅ test_get_user_id_valid passed")
+
 
     @patch('api.middleware.authorization.decode_auth_token')
     def test_get_user_id_no_token(self, mock_decode):
@@ -311,7 +311,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         data = response.get_json()
         self.assertEqual(data["error"], "Unauthorized")
-        print("✅ test_get_user_id_no_token passed")
+
 
 
 class TestCommunityPermissions(unittest.TestCase):
@@ -327,7 +327,7 @@ class TestCommunityPermissions(unittest.TestCase):
         self.assertTrue(has_community_permission("admin", "can_remove_members"))
         self.assertTrue(has_community_permission("admin", "can_edit_community"))
         self.assertTrue(has_community_permission("admin", "can_manage_roles"))
-        print("✅ test_has_community_permission_admin passed")
+
 
     def test_has_community_permission_moderator(self):
         """Test moderator has limited community permissions"""
@@ -339,7 +339,7 @@ class TestCommunityPermissions(unittest.TestCase):
         self.assertTrue(has_community_permission("moderator", "can_remove_members"))
         self.assertFalse(has_community_permission("moderator", "can_edit_community"))
         self.assertFalse(has_community_permission("moderator", "can_manage_roles"))
-        print("✅ test_has_community_permission_moderator passed")
+
 
     def test_has_community_permission_member(self):
         """Test member has no special community permissions"""
@@ -351,7 +351,7 @@ class TestCommunityPermissions(unittest.TestCase):
         self.assertFalse(has_community_permission("member", "can_remove_members"))
         self.assertFalse(has_community_permission("member", "can_edit_community"))
         self.assertFalse(has_community_permission("member", "can_manage_roles"))
-        print("✅ test_has_community_permission_member passed")
+
 
     def test_has_community_permission_invalid_role(self):
         """Test invalid role returns False"""
@@ -360,7 +360,7 @@ class TestCommunityPermissions(unittest.TestCase):
         # Assert
         self.assertFalse(has_community_permission("invalid_role", "can_delete_posts"))
         self.assertFalse(has_community_permission("", "can_delete_posts"))
-        print("✅ test_has_community_permission_invalid_role passed")
+
 
     def test_has_community_permission_invalid_permission(self):
         """Test invalid permission returns False"""
@@ -369,10 +369,9 @@ class TestCommunityPermissions(unittest.TestCase):
         # Assert
         self.assertFalse(has_community_permission("admin", "invalid_permission"))
         self.assertFalse(has_community_permission("admin", ""))
-        print("✅ test_has_community_permission_invalid_permission passed")
+
 
 
 if __name__ == "__main__":
-    print("\n🧪 Testing Middleware Layer (JWT and Authorization)...\n")
-    print("=" * 60)
+
     unittest.main(verbosity=2, exit=False)

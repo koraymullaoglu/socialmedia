@@ -147,3 +147,7 @@ class UserService:
             result["reason"] = "Private profile - not following"
         
         return result
+    
+    def get_friend_recommendations(self, user_id: int, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get friend recommendations"""
+        return self.user_repository.get_recommendations(user_id, limit)
