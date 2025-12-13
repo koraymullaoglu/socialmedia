@@ -79,10 +79,21 @@ class FollowRepository:
         self.db.session.commit()
         return result.fetchone() is not None
 
-    def get_followers(self, user_id: int, limit: int = 100, offset: int = 0) -> List[dict]:
+    def get_followers(self, user_id: int, current_user_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> List[dict]:
         """Get all followers of a user (only accepted follows)"""
         query = text("""
-            SELECT f.*, u.user_id, u.username, u.profile_picture_url, u.bio
+            SELECT 
+                f.*, u.user_id, u.username, u.profile_picture_url, u.bio,
+                CASE 
+                    WHEN :current_user_id IS NOT NULL THEN 
+                        EXISTS(
+                            SELECT 1 FROM Follows f2 
+                            WHERE f2.follower_id = :current_user_id 
+                            AND f2.following_id = u.user_id 
+                            AND f2.status_id = 2
+                        )
+                    ELSE FALSE 
+                END as is_following
             FROM Follows f
             JOIN Users u ON f.follower_id = u.user_id
             WHERE f.following_id = :user_id AND f.status_id = 2
@@ -91,15 +102,27 @@ class FollowRepository:
         """)
         result = self.db.session.execute(query, {
             "user_id": user_id,
+            "current_user_id": current_user_id,
             "limit": limit,
             "offset": offset
         })
         return [dict(row._mapping) for row in result.fetchall()]
 
-    def get_following(self, user_id: int, limit: int = 100, offset: int = 0) -> List[dict]:
+    def get_following(self, user_id: int, current_user_id: Optional[int] = None, limit: int = 100, offset: int = 0) -> List[dict]:
         """Get all users that a user is following (only accepted follows)"""
         query = text("""
-            SELECT f.*, u.user_id, u.username, u.profile_picture_url, u.bio
+            SELECT 
+                f.*, u.user_id, u.username, u.profile_picture_url, u.bio,
+                CASE 
+                    WHEN :current_user_id IS NOT NULL THEN 
+                        EXISTS(
+                            SELECT 1 FROM Follows f2 
+                            WHERE f2.follower_id = :current_user_id 
+                            AND f2.following_id = u.user_id 
+                            AND f2.status_id = 2
+                        )
+                    ELSE FALSE 
+                END as is_following
             FROM Follows f
             JOIN Users u ON f.following_id = u.user_id
             WHERE f.follower_id = :user_id AND f.status_id = 2
@@ -108,6 +131,7 @@ class FollowRepository:
         """)
         result = self.db.session.execute(query, {
             "user_id": user_id,
+            "current_user_id": current_user_id,
             "limit": limit,
             "offset": offset
         })

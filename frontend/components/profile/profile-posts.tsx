@@ -79,9 +79,9 @@ export function ProfilePosts({ posts, isPrivateAndNotFollowing }: ProfilePostsPr
 
                 <p className="text-foreground leading-relaxed">{post.content}</p>
 
-                {post.image_url && (
+                {post.media_url && (
                   <Image
-                    src={post.image_url || "/placeholder.svg"}
+                    src={post.media_url || "/placeholder.svg"}
                     alt="Post content"
                     width={500}
                     height={300}
@@ -92,11 +92,11 @@ export function ProfilePosts({ posts, isPrivateAndNotFollowing }: ProfilePostsPr
                 <div className="flex items-center gap-6 pt-2">
                   <button className="text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
                     <Heart className="h-5 w-5" />
-                    <span className="text-sm">{post.likes_count}</span>
+                    <span className="text-sm">{post.like_count}</span>
                   </button>
                   <button className="text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
                     <MessageCircle className="h-5 w-5" />
-                    <span className="text-sm">{post.comments_count}</span>
+                    <span className="text-sm">{post.comment_count}</span>
                   </button>
                   <button className="text-muted-foreground hover:text-primary flex items-center gap-2 transition-colors">
                     <Share2 className="h-5 w-5" />

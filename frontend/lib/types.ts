@@ -32,12 +32,32 @@ export interface ApiError {
 export interface Post {
   post_id: number
   user_id: number
+  username?: string
+  user_profile_picture?: string
   content: string
-  image_url?: string
+  media_url?: string
+  community_id?: number
+  community_name?: string
   created_at: string
-  likes_count: number
-  comments_count: number
+  updated_at: string
+  like_count: number
+  comment_count: number
+  liked_by_user: boolean
+  engagement_score?: number
   user?: User
+}
+
+export interface FeedResponse {
+  success: boolean
+  posts: Post[]
+  limit: number
+  offset: number
+}
+
+export interface CreatePostData {
+  content: string
+  media_url?: string
+  community_id?: number
 }
 
 // TODO: Phase 2 - Add Comment types
@@ -85,4 +105,19 @@ export interface Community {
   created_by: number
   member_count: number
   created_at: string
+}
+
+export interface RecommendationResponse {
+  success: boolean
+  recommendations: Recommendation[]
+  count: number
+}
+
+export interface Recommendation {
+  user_id: number
+  suggested_username: string
+  mutual_count: number
+  post_count: number
+  follower_count: number
+  recommendation_score: number
 }

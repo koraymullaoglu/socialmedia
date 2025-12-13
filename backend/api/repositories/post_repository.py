@@ -305,6 +305,7 @@ class PostRepository:
         query = text("""
             SELECT 
                 v.post_id, v.author_id as user_id, v.community_id, v.content, v.media_url, v.created_at, v.updated_at,
+                v.author_username, v.author_profile_picture,
                 v.like_count, v.comment_count,
                 EXISTS(SELECT 1 FROM PostLikes pl WHERE pl.post_id = v.post_id AND pl.user_id = :user_id) as liked_by_user
             FROM user_feed_view v
@@ -324,6 +325,8 @@ class PostRepository:
             post = Post.from_row(row)
             posts_with_stats.append({
                 **post.to_dict(),
+                'username': row.author_username,
+                'user_profile_picture': row.author_profile_picture,
                 'like_count': row.like_count,
                 'comment_count': row.comment_count,
                 'liked_by_user': row.liked_by_user
@@ -344,19 +347,8 @@ class PostRepository:
         
         posts = []
         for row in result.fetchall():
-            # We can reuse Post.from_row but need to handle extra fields manually or just return dict
-            # The view returns columns compatible with Post structure + extras
-            # Let's verify Post.from_row behavior. It usually takes specific columns.
-            # Post.from_row takes a row and extracts fields. 
-            # View columns: post_id, user_id, username, profile_picture_url, content, media_url, 
-            # community_id, community_name, created_at, updated_at, like_count, comment_count...
-            
-            # Post entity fields: post_id, user_id, community_id, content, media_url, created_at, updated_at
-            
-             # Create Post object for basic fields
             post = Post.from_row(row)
             
-            # Return dict with extra view fields
             posts.append({
                 **post.to_dict(),
                 'username': row.username,
