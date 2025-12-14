@@ -109,14 +109,14 @@ class FollowService:
             "follow": updated.to_dict()
         }
 
-    def get_followers(self, user_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_followers(self, user_id: int, current_user_id: int = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get all followers of a user"""
-        followers = self.follow_repository.get_followers(user_id, limit, offset)
+        followers = self.follow_repository.get_followers(user_id, current_user_id, limit, offset)
         return followers
 
-    def get_following(self, user_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_following(self, user_id: int, current_user_id: int = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
         """Get all users that a user is following"""
-        following = self.follow_repository.get_following(user_id, limit, offset)
+        following = self.follow_repository.get_following(user_id, current_user_id, limit, offset)
         return following
 
     def get_pending_requests(self, user_id: int, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:

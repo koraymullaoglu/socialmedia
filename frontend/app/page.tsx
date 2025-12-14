@@ -1,14 +1,23 @@
 "use client"
 
 import { useEffect } from "react"
-import { useSearchParams } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Footer } from "@/components/layout/footer"
 import { Hero } from "@/components/layout/hero"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
 export default function Home() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const router = useRouter()
+  const { user, isLoading } = useAuth()
+
+  useEffect(() => {
+    if (!isLoading && user) {
+      router.push("/home")
+    }
+  }, [user, isLoading, router])
 
   useEffect(() => {
     const success = searchParams.get("success")
@@ -24,6 +33,10 @@ export default function Home() {
       })
     }
   }, [searchParams, toast])
+
+  if (isLoading) {
+    return null
+  }
 
   return (
     <main className="flex min-h-screen flex-col">

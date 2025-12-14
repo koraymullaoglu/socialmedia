@@ -49,8 +49,9 @@ def get_followers(user_id):
     try:
         limit = request.args.get('limit', 100, type=int)
         offset = request.args.get('offset', 0, type=int)
+        current_user_id = getattr(g, 'current_user_id', None)
         
-        followers = follow_service.get_followers(user_id, limit, offset)
+        followers = follow_service.get_followers(user_id, current_user_id, limit, offset)
         
         return make_response(jsonify({
             "followers": followers,
@@ -68,8 +69,9 @@ def get_following(user_id):
     try:
         limit = request.args.get('limit', 100, type=int)
         offset = request.args.get('offset', 0, type=int)
+        current_user_id = getattr(g, 'current_user_id', None)
         
-        following = follow_service.get_following(user_id, limit, offset)
+        following = follow_service.get_following(user_id, current_user_id, limit, offset)
         
         return make_response(jsonify({
             "following": following,

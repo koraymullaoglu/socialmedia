@@ -1,8 +1,11 @@
 import type {
+  CreatePostData,
+  FeedResponse,
   FollowUser,
   LoginResponse,
   Post,
   ProfileData,
+  RecommendationResponse,
   RegisterData,
   UpdateProfileData,
   User,
@@ -114,10 +117,57 @@ class ApiClient {
     return data.posts || []
   }
 
-  // TODO: Phase 2 - Posts API
-  // async getPosts(): Promise<Post[]> { }
-  // async createPost(content: string, image?: string): Promise<Post> { }
-  // async likePost(postId: number): Promise<void> { }
+  // Posts API
+  async getFeed(limit = 50, offset = 0): Promise<FeedResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/feed?limit=${limit}&offset=${offset}`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<FeedResponse>(response)
+  }
+
+  async getDiscoverPosts(limit = 50, offset = 0): Promise<FeedResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts/discover?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<FeedResponse>(response)
+  }
+
+  async likePost(postId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async unlikePost(postId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async createPost(data: CreatePostData): Promise<Post> {
+    const response = await fetch(`${API_BASE_URL}/api/posts`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    const responseData = await this.handleResponse<{ post: Post }>(response)
+    return responseData.post
+  }
+
+  // User API
+  async getRecommendations(limit = 5): Promise<RecommendationResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/users/recommendations?limit=${limit}`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<RecommendationResponse>(response)
+  }
 
   // TODO: Phase 2 - Comments API
   // async getComments(postId: number): Promise<Comment[]> { }

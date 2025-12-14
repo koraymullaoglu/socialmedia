@@ -29,6 +29,12 @@ export function Navbar() {
             {user ? (
               <>
                 <Link
+                  href="/home"
+                  className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                >
+                  Home
+                </Link>
+                <Link
                   href="/dashboard"
                   className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
                 >
@@ -70,6 +76,13 @@ export function Navbar() {
           <div className="space-y-3 px-4 py-4">
             {user ? (
               <>
+                <Link
+                  href="/home"
+                  className="text-foreground hover:bg-muted block rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Home
+                </Link>
                 <Link
                   href="/dashboard"
                   className="text-foreground hover:bg-muted block rounded-lg px-3 py-2 text-sm font-medium transition-colors"
