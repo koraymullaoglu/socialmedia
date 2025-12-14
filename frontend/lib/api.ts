@@ -1,4 +1,10 @@
 import type {
+  Comment,
+  CommunitiesResponse,
+  Community,
+  CommunityMembersResponse,
+  CreateCommentData,
+  CreateCommunityData,
   CreatePostData,
   FeedResponse,
   FollowUser,
@@ -7,6 +13,7 @@ import type {
   ProfileData,
   RecommendationResponse,
   RegisterData,
+  UpdateCommunityData,
   UpdateProfileData,
   User,
 } from "./types"
@@ -161,6 +168,176 @@ class ApiClient {
     return responseData.post
   }
 
+  async createCommunity(data: CreateCommunityData): Promise<Community> {
+    const response = await fetch(`${API_BASE_URL}/api/communities`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    const responseData = await this.handleResponse<{ community: Community }>(response)
+    return responseData.community
+  }
+
+  async getCommunities(limit = 50, offset = 0): Promise<CommunitiesResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/communities?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<CommunitiesResponse>(response)
+  }
+
+  async getMyCommunities(): Promise<CommunitiesResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/me/communities`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<CommunitiesResponse>(response)
+  }
+
+  async searchCommunities(query: string): Promise<CommunitiesResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/search?q=${query}`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<CommunitiesResponse>(response)
+  }
+
+  async getCommunityDetails(communityId: number): Promise<Community> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/${communityId}`, {
+      headers: this.getAuthHeaders(),
+    })
+    const responseData = await this.handleResponse<{ community: Community }>(response)
+    return responseData.community
+  }
+
+  async updateCommunity(communityId: number, data: UpdateCommunityData): Promise<Community> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/${communityId}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    const responseData = await this.handleResponse<{ community: Community }>(response)
+    return responseData.community
+  }
+
+  async deleteCommunity(communityId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/${communityId}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async joinCommunity(communityId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/${communityId}/join`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async leaveCommunity(communityId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/communities/${communityId}/leave`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  // Comment API
+  async getPostComments(postId: number): Promise<Comment[]> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
+      headers: this.getAuthHeaders(),
+    })
+    const data = await this.handleResponse<{ comments: Comment[] }>(response)
+    return data.comments || []
+  }
+
+  async createComment(postId: number, data: CreateCommentData): Promise<Comment> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/comments`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    const responseData = await this.handleResponse<{ comment: Comment }>(response)
+    return responseData.comment
+  }
+
+  async updateComment(commentId: number, content: string): Promise<Comment> {
+    const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify({ content }),
+    })
+    const responseData = await this.handleResponse<{ comment: Comment }>(response)
+    return responseData.comment
+  }
+
+  async deleteComment(commentId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async getCommentReplies(commentId: number): Promise<Comment[]> {
+    const response = await fetch(`${API_BASE_URL}/api/comments/${commentId}/replies`, {
+      headers: this.getAuthHeaders(),
+    })
+    const data = await this.handleResponse<{ replies: Comment[] }>(response)
+    return data.replies || []
+  }
+
+  // Community members API methods
+  async getCommunityMembers(
+    communityId: number,
+    limit = 50,
+    offset = 0
+  ): Promise<CommunityMembersResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/communities/${communityId}/members?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<CommunityMembersResponse>(response)
+  }
+
+  async removeCommunityMember(communityId: number, userId: number): Promise<void> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/communities/${communityId}/members/${userId}`,
+      {
+        method: "DELETE",
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<void>(response)
+  }
+
+  async changeMemberRole(communityId: number, userId: number, roleId: number): Promise<void> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/communities/${communityId}/members/${userId}/role`,
+      {
+        method: "PUT",
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ role_id: roleId }),
+      }
+    )
+    return this.handleResponse<void>(response)
+  }
+
+  // Community posts API method
+  async getCommunityPosts(communityId: number, limit = 50, offset = 0): Promise<FeedResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts/community/${communityId}?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<FeedResponse>(response)
+  }
+
   // User API
   async getRecommendations(limit = 5): Promise<RecommendationResponse> {
     const response = await fetch(`${API_BASE_URL}/api/auth/users/recommendations?limit=${limit}`, {
@@ -169,13 +346,6 @@ class ApiClient {
     return this.handleResponse<RecommendationResponse>(response)
   }
 
-  // TODO: Phase 2 - Comments API
-  // async getComments(postId: number): Promise<Comment[]> { }
-  // async createComment(postId: number, content: string): Promise<Comment> { }
-
-  // TODO: Phase 3 - Communities API
-  // async getCommunities(): Promise<Community[]> { }
-  // async joinCommunity(communityId: number): Promise<void> { }
   // File Upload
   async uploadFile(file: File): Promise<string> {
     const formData = new FormData()

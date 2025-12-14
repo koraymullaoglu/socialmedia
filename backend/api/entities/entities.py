@@ -188,6 +188,8 @@ class Comment:
     user_id: Optional[int] = None
     content: Optional[str] = None
     parent_comment_id: Optional[int] = None
+    username: Optional[str] = None
+    user_profile_picture: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
@@ -201,17 +203,21 @@ class Comment:
             user_id=row.user_id,
             content=row.content,
             parent_comment_id=row.parent_comment_id,
+            username=getattr(row, 'username', None),
+            user_profile_picture=getattr(row, 'profile_picture_url', None),
             created_at=row.created_at,
             updated_at=getattr(row, 'updated_at', None)
         )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "comment_id": self.comment_id,
+            "id": self.comment_id,
             "post_id": self.post_id,
             "user_id": self.user_id,
             "content": self.content,
             "parent_comment_id": self.parent_comment_id,
+            "username": self.username,
+            "user_profile_picture": self.user_profile_picture,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None
         }
@@ -233,6 +239,9 @@ class Community:
     description: Optional[str] = None
     creator_id: Optional[int] = None
     privacy_id: Optional[int] = None
+    is_member: bool = False
+    member_count: int = 0
+    role_id: Optional[int] = None
     created_at: Optional[datetime] = None
 
     @classmethod
@@ -245,16 +254,22 @@ class Community:
             description=row.description,
             creator_id=row.creator_id,
             privacy_id=row.privacy_id,
+            is_member=getattr(row, 'is_member', False),
+            member_count=getattr(row, 'member_count', 0),
+            role_id=getattr(row, 'role_id', None),
             created_at=row.created_at
         )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
-            "community_id": self.community_id,
+            "id": self.community_id,
             "name": self.name,
             "description": self.description,
             "creator_id": self.creator_id,
             "privacy_id": self.privacy_id,
+            "is_member": self.is_member,
+            "member_count": self.member_count,
+            "role_id": self.role_id,
             "created_at": self.created_at.isoformat() if self.created_at else None
         }
 

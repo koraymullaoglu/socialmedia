@@ -28,7 +28,7 @@ class CommunityRepository:
             self.db.session.commit()
             
             if result:
-                return self.get_by_id(result.community_id)
+                return self.get_by_id(result.community_id, community.creator_id)
             else:
                  raise SQLAlchemyError("Stored procedure returned no result")
 
@@ -39,35 +39,85 @@ class CommunityRepository:
             self.db.session.rollback()
             raise
     
-    def get_by_id(self, community_id: int) -> Optional[Community]:
+    def get_by_id(self, community_id: int, user_id: int = None) -> Optional[Community]:
         """Get community by ID"""
-        query = text("SELECT * FROM Communities WHERE community_id = :community_id")
-        result = self.db.session.execute(query, {"community_id": community_id})
+        if user_id:
+            query = text("""
+                SELECT c.*, 
+                    CASE WHEN cm.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_member,
+                    cm.role_id
+                FROM Communities c
+                LEFT JOIN CommunityMembers cm ON c.community_id = cm.community_id AND cm.user_id = :user_id
+                WHERE c.community_id = :community_id
+            """)
+            result = self.db.session.execute(query, {"community_id": community_id, "user_id": user_id})
+        else:
+            query = text("""
+                SELECT *, FALSE as is_member, NULL as role_id
+                FROM Communities 
+                WHERE community_id = :community_id
+            """)
+            result = self.db.session.execute(query, {"community_id": community_id})
+            
         return Community.from_row(result.fetchone())
     
-    def get_all(self, limit: int = 50, offset: int = 0) -> List[Community]:
+    def get_all(self, limit: int = 50, offset: int = 0, user_id: int = None) -> List[Community]:
         """Get all communities with pagination"""
-        query = text("""
-            SELECT * FROM Communities 
-            ORDER BY created_at DESC 
-            LIMIT :limit OFFSET :offset
-        """)
-        result = self.db.session.execute(query, {"limit": limit, "offset": offset})
+        if user_id:
+            query = text("""
+                SELECT c.*, 
+                    CASE WHEN cm.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_member,
+                    cm.role_id
+                FROM Communities c
+                LEFT JOIN CommunityMembers cm ON c.community_id = cm.community_id AND cm.user_id = :user_id
+                ORDER BY c.created_at DESC 
+                LIMIT :limit OFFSET :offset
+            """)
+            result = self.db.session.execute(query, {"limit": limit, "offset": offset, "user_id": user_id})
+        else:
+            query = text("""
+                SELECT *, FALSE as is_member, NULL as role_id
+                FROM Communities
+                ORDER BY created_at DESC 
+                LIMIT :limit OFFSET :offset
+            """)
+            result = self.db.session.execute(query, {"limit": limit, "offset": offset})
+            
         return [Community.from_row(row) for row in result.fetchall()]
     
-    def search(self, search_term: str, limit: int = 50, offset: int = 0) -> List[Community]:
+    def search(self, search_term: str, limit: int = 50, offset: int = 0, user_id: int = None) -> List[Community]:
         """Search communities by name or description"""
-        query = text("""
-            SELECT * FROM Communities 
-            WHERE name ILIKE :search_term OR description ILIKE :search_term
-            ORDER BY created_at DESC 
-            LIMIT :limit OFFSET :offset
-        """)
-        result = self.db.session.execute(query, {
-            "search_term": f"%{search_term}%",
-            "limit": limit,
-            "offset": offset
-        })
+        if user_id:
+            query = text("""
+                SELECT c.*, 
+                    CASE WHEN cm.user_id IS NOT NULL THEN TRUE ELSE FALSE END as is_member,
+                    cm.role_id
+                FROM Communities c
+                LEFT JOIN CommunityMembers cm ON c.community_id = cm.community_id AND cm.user_id = :user_id
+                WHERE c.name ILIKE :search_term OR c.description ILIKE :search_term
+                ORDER BY c.created_at DESC 
+                LIMIT :limit OFFSET :offset
+            """)
+            result = self.db.session.execute(query, {
+                "search_term": f"%{search_term}%",
+                "limit": limit,
+                "offset": offset,
+                "user_id": user_id
+            })
+        else:
+            query = text("""
+                SELECT *, FALSE as is_member, NULL as role_id
+                FROM Communities
+                WHERE name ILIKE :search_term OR description ILIKE :search_term
+                ORDER BY created_at DESC 
+                LIMIT :limit OFFSET :offset
+            """)
+            result = self.db.session.execute(query, {
+                "search_term": f"%{search_term}%",
+                "limit": limit,
+                "offset": offset
+            })
+            
         return [Community.from_row(row) for row in result.fetchall()]
     
     def update(self, community: Community) -> Optional[Community]:
@@ -199,9 +249,11 @@ class CommunityRepository:
         """Get all communities a user is a member of"""
         query = text("""
             SELECT 
-                c.community_id, c.name, c.description, c.creator_id, c.privacy_id, c.created_at,
+                c.community_id as id, c.name, c.description, c.creator_id, c.privacy_id, c.created_at,
                 cm.role_id, cm.joined_at,
-                r.role_name
+                r.role_name,
+                TRUE as is_member,
+                c.member_count
             FROM CommunityMembers cm
             JOIN Communities c ON cm.community_id = c.community_id
             JOIN Roles r ON cm.role_id = r.role_id

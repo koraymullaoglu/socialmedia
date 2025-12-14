@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, User, X } from "lucide-react"
+import { Menu, User, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 
@@ -33,6 +33,12 @@ export function Navbar() {
                   className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
                 >
                   Home
+                </Link>
+                <Link
+                  href="/communities"
+                  className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                >
+                  Communities
                 </Link>
                 <Link
                   href="/dashboard"
@@ -82,6 +88,14 @@ export function Navbar() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Home
+                </Link>
+                <Link
+                  href="/communities"
+                  className="text-foreground hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <Users className="h-4 w-4" />
+                  Communities
                 </Link>
                 <Link
                   href="/dashboard"

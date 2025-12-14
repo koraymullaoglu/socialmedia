@@ -62,11 +62,17 @@ export interface CreatePostData {
 
 // TODO: Phase 2 - Add Comment types
 export interface Comment {
-  comment_id: number
+  id: number
   post_id: number
   user_id: number
+  username?: string
+  user_profile_picture?: string
   content: string
+  parent_comment_id?: number
   created_at: string
+  updated_at?: string
+  replies?: Comment[]
+  reply_count?: number
 }
 
 export interface FollowStats {
@@ -99,12 +105,25 @@ export interface UpdateProfileData {
 
 // TODO: Phase 3 - Add Community types
 export interface Community {
-  community_id: number
+  id: number
   name: string
   description: string
-  created_by: number
-  member_count: number
+  privacy_id: number // 1=Public, 2=Private
+  created_by?: number
+  member_count?: number
   created_at: string
+  is_member?: boolean
+  role_id?: number // 1=Admin, 2=Moderator, 3=Member
+}
+
+export interface CreateCommunityData {
+  name: string
+  description: string
+  privacy_id: number
+}
+
+export interface CommunitiesResponse {
+  communities: Community[]
 }
 
 export interface RecommendationResponse {
@@ -120,4 +139,33 @@ export interface Recommendation {
   post_count: number
   follower_count: number
   recommendation_score: number
+}
+
+export interface CreateCommentData {
+  content: string
+  parent_comment_id?: number
+}
+
+export interface CommentsResponse {
+  success: boolean
+  comments: Comment[]
+}
+
+export interface CommunityMember {
+  user_id: number
+  username: string
+  profile_picture_url?: string
+  role_id: number // 1=Admin, 2=Moderator, 3=Member
+  joined_at: string
+}
+
+export interface CommunityMembersResponse {
+  members: CommunityMember[]
+  total: number
+}
+
+export interface UpdateCommunityData {
+  name?: string
+  description?: string
+  privacy_id?: number
 }

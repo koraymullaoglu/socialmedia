@@ -53,7 +53,10 @@ def get_communities():
         if offset < 0:
             return jsonify({"error": "Offset must be non-negative"}), 400
         
-        communities = community_service.get_all_communities(limit, offset)
+        # Get user_id if authenticated
+        user_id = getattr(request, 'user_id', None)
+        
+        communities = community_service.get_all_communities(limit, offset, user_id)
         
         return jsonify({
             "communities": [c.to_dict() for c in communities],
@@ -83,7 +86,10 @@ def search_communities():
         if offset < 0:
             return jsonify({"error": "Offset must be non-negative"}), 400
         
-        communities = community_service.search_communities(search_term, limit, offset)
+        # Get user_id if authenticated
+        user_id = getattr(request, 'user_id', None)
+        
+        communities = community_service.search_communities(search_term, limit, offset, user_id)
         
         return jsonify({
             "communities": [c.to_dict() for c in communities],
@@ -103,7 +109,10 @@ def search_communities():
 def get_community(community_id):
     """Get community details by ID"""
     try:
-        community = community_service.get_community(community_id)
+        # Get user_id if authenticated
+        user_id = getattr(request, 'user_id', None)
+        
+        community = community_service.get_community(community_id, user_id)
         
         if not community:
             return jsonify({"error": "Community not found"}), 404
@@ -279,7 +288,7 @@ def change_member_role(community_id, target_user_id):
         return jsonify({"error": "Internal server error"}), 500
 
 
-@community_bp.route('/me/communities', methods=['GET'])
+@community_bp.route('/communities/me/communities', methods=['GET'])
 @token_required
 def get_my_communities():
     """Get all communities the authenticated user is a member of"""

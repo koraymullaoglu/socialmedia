@@ -263,6 +263,8 @@ class PostRepository:
         query = text("""
             SELECT 
                 p.*,
+                u.username,
+                u.profile_picture_url as user_profile_picture,
                 COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
                 COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
                 CASE 
@@ -274,10 +276,11 @@ class PostRepository:
                     ELSE FALSE 
                 END as liked_by_user
             FROM Posts p
+            JOIN Users u ON p.user_id = u.user_id
             LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
             LEFT JOIN Comments c ON p.post_id = c.post_id
             WHERE p.community_id = :community_id
-            GROUP BY p.post_id, p.user_id, p.community_id, p.content, p.media_url, p.created_at
+            GROUP BY p.post_id, u.username, u.profile_picture_url
             ORDER BY p.created_at DESC 
             LIMIT :limit OFFSET :offset
         """)
@@ -294,6 +297,8 @@ class PostRepository:
             post = Post.from_row(row)
             posts_with_stats.append({
                 **post.to_dict(),
+                'username': row.username,
+                'user_profile_picture': row.user_profile_picture,
                 'like_count': row.like_count,
                 'comment_count': row.comment_count,
                 'liked_by_user': row.liked_by_user

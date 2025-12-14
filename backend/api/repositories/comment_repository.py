@@ -13,7 +13,7 @@ class CommentRepository:
         query = text("""
             INSERT INTO Comments (post_id, user_id, content, parent_comment_id)
             VALUES (:post_id, :user_id, :content, :parent_comment_id)
-            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at, updated_at
+            RETURNING comment_id
         """)
         
         result = self.db.session.execute(query, {
@@ -25,11 +25,18 @@ class CommentRepository:
         self.db.session.commit()
         
         row = result.fetchone()
-        return Comment.from_row(row)
+        if row:
+            return self.get_by_id(row.comment_id)
+        return None
 
     def get_by_id(self, comment_id: int) -> Optional[Comment]:
         """Get comment by ID"""
-        query = text("SELECT * FROM Comments WHERE comment_id = :comment_id")
+        query = text("""
+            SELECT c.*, u.username, u.profile_picture_url
+            FROM Comments c
+            JOIN Users u ON c.user_id = u.user_id
+            WHERE c.comment_id = :comment_id
+        """)
         result = self.db.session.execute(query, {"comment_id": comment_id})
         row = result.fetchone()
         return Comment.from_row(row)
@@ -37,9 +44,11 @@ class CommentRepository:
     def get_by_post_id(self, post_id: int, limit: int = 100, offset: int = 0) -> List[Comment]:
         """Get all top-level comments for a specific post (no parent)"""
         query = text("""
-            SELECT * FROM Comments 
-            WHERE post_id = :post_id AND parent_comment_id IS NULL
-            ORDER BY created_at ASC 
+            SELECT c.*, u.username, u.profile_picture_url
+            FROM Comments c
+            JOIN Users u ON c.user_id = u.user_id
+            WHERE c.post_id = :post_id AND c.parent_comment_id IS NULL
+            ORDER BY c.created_at ASC 
             LIMIT :limit OFFSET :offset
         """)
         result = self.db.session.execute(query, {
@@ -52,9 +61,11 @@ class CommentRepository:
     def get_by_user_id(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Comment]:
         """Get all comments by a specific user"""
         query = text("""
-            SELECT * FROM Comments 
-            WHERE user_id = :user_id 
-            ORDER BY created_at DESC 
+            SELECT c.*, u.username, u.profile_picture_url
+            FROM Comments c
+            JOIN Users u ON c.user_id = u.user_id
+            WHERE c.user_id = :user_id 
+            ORDER BY c.created_at DESC 
             LIMIT :limit OFFSET :offset
         """)
         result = self.db.session.execute(query, {
@@ -70,7 +81,7 @@ class CommentRepository:
             UPDATE Comments 
             SET content = :content
             WHERE comment_id = :comment_id
-            RETURNING comment_id, post_id, user_id, content, parent_comment_id, created_at, updated_at
+            RETURNING comment_id
         """)
         
         result = self.db.session.execute(query, {
@@ -80,7 +91,9 @@ class CommentRepository:
         self.db.session.commit()
         
         row = result.fetchone()
-        return Comment.from_row(row)
+        if row:
+            return self.get_by_id(row.comment_id)
+        return None
 
     def delete(self, comment_id: int) -> bool:
         """Delete a comment by ID"""
@@ -98,9 +111,11 @@ class CommentRepository:
     def get_replies(self, comment_id: int, limit: int = 100, offset: int = 0) -> List[Comment]:
         """Get all replies to a specific comment"""
         query = text("""
-            SELECT * FROM Comments 
-            WHERE parent_comment_id = :comment_id 
-            ORDER BY created_at ASC 
+            SELECT c.*, u.username, u.profile_picture_url
+            FROM Comments c
+            JOIN Users u ON c.user_id = u.user_id
+            WHERE c.parent_comment_id = :comment_id 
+            ORDER BY c.created_at ASC 
             LIMIT :limit OFFSET :offset
         """)
         result = self.db.session.execute(query, {

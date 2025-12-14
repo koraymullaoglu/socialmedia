@@ -1,6 +1,5 @@
 import type React from "react"
 import type { Metadata } from "next"
-import { Analytics } from "@vercel/analytics/next"
 import "./globals.css"
 import { Navbar } from "@/components/layout/navbar"
 import { Toaster } from "@/components/ui/toaster"
@@ -9,7 +8,6 @@ import { AuthProvider } from "@/lib/auth-context"
 export const metadata: Metadata = {
   title: "SocialHub - Connect, Share, Build Communities",
   description: "Join millions of people sharing their stories and building communities",
-  generator: "v0.app",
   icons: {
     icon: [
       {
@@ -42,7 +40,6 @@ export default function RootLayout({
           {children}
           <Toaster />
         </AuthProvider>
-        <Analytics />
       </body>
     </html>
   )

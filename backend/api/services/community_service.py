@@ -32,9 +32,9 @@ class CommunityService:
         
         return created_community
     
-    def get_community(self, community_id: int) -> Optional[Community]:
+    def get_community(self, community_id: int, user_id: int = None) -> Optional[Community]:
         """Get community by ID"""
-        return self.community_repository.get_by_id(community_id)
+        return self.community_repository.get_by_id(community_id, user_id)
     
     def update_community(self, community_id: int, user_id: int, name: str = None, 
                         description: str = None, privacy_id: int = None) -> Community:
@@ -68,7 +68,8 @@ class CommunityService:
         if errors:
             raise ValueError("; ".join(errors))
         
-        return self.community_repository.update(community)
+        self.community_repository.update(community)
+        return self.community_repository.get_by_id(community_id, user_id)
     
     def delete_community(self, community_id: int, user_id: int) -> bool:
         """
@@ -213,16 +214,16 @@ class CommunityService:
         
         return self.community_repository.get_members(community_id, limit, offset)
     
-    def search_communities(self, search_term: str, limit: int = 50, offset: int = 0) -> List[Community]:
+    def search_communities(self, search_term: str, limit: int = 50, offset: int = 0, user_id: int = None) -> List[Community]:
         """Search communities by name or description"""
         if not search_term or len(search_term.strip()) == 0:
             raise ValueError("Search term is required")
         
-        return self.community_repository.search(search_term, limit, offset)
+        return self.community_repository.search(search_term, limit, offset, user_id)
     
-    def get_all_communities(self, limit: int = 50, offset: int = 0) -> List[Community]:
+    def get_all_communities(self, limit: int = 50, offset: int = 0, user_id: int = None) -> List[Community]:
         """Get all communities with pagination"""
-        return self.community_repository.get_all(limit, offset)
+        return self.community_repository.get_all(limit, offset, user_id)
     
     def get_user_communities(self, user_id: int) -> List[Dict[str, Any]]:
         """Get all communities a user is a member of"""

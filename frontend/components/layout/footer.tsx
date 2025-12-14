@@ -1,5 +1,3 @@
-import Link from "next/link"
-
 export function Footer() {
   return (
     <footer className="border-border bg-background border-t">
@@ -19,48 +17,7 @@ export function Footer() {
             </p>
           </div>
 
-          {/* Links */}
-          <div>
-            <h3 className="mb-4 font-semibold">Product</h3>
-            <ul className="text-muted-foreground space-y-2 text-sm">
-              <li>
-                <Link href="/features" className="hover:text-foreground transition-colors">
-                  Features
-                </Link>
-              </li>
-              <li>
-                <Link href="/pricing" className="hover:text-foreground transition-colors">
-                  Pricing
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="hover:text-foreground transition-colors">
-                  About
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="mb-4 font-semibold">Support</h3>
-            <ul className="text-muted-foreground space-y-2 text-sm">
-              <li>
-                <Link href="/help" className="hover:text-foreground transition-colors">
-                  Help Center
-                </Link>
-              </li>
-              <li>
-                <Link href="/terms" className="hover:text-foreground transition-colors">
-                  Terms
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-foreground transition-colors">
-                  Privacy
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {/* Links Removed (Demo artifacts) */}
         </div>
 
         <div className="border-border mt-8 border-t pt-8">

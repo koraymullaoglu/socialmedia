@@ -3,7 +3,8 @@
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Bookmark, Heart, MessageCircle, Share2 } from "lucide-react"
+import { Bookmark, ChevronDown, ChevronUp, Heart, MessageCircle, Share2 } from "lucide-react"
+import { CommentSection } from "@/components/post/comment-section"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -20,6 +21,7 @@ export function PostCard({ post, onLikeUpdate }: PostCardProps) {
   const [isLiked, setIsLiked] = useState(post.liked_by_user)
   const [likeCount, setLikeCount] = useState(post.like_count)
   const [isLiking, setIsLiking] = useState(false)
+  const [showComments, setShowComments] = useState(false)
   const { toast } = useToast()
 
   const handleLike = async () => {
@@ -135,9 +137,15 @@ export function PostCard({ post, onLikeUpdate }: PostCardProps) {
             <span className="text-xs font-medium">{likeCount}</span>
           </Button>
 
-          <Button variant="ghost" size="sm" className="text-muted-foreground gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className={`gap-2 ${showComments ? "text-primary" : "text-muted-foreground"}`}
+            onClick={() => setShowComments(!showComments)}
+          >
             <MessageCircle className="h-4 w-4" />
             <span className="text-xs font-medium">{post.comment_count}</span>
+            {showComments ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
 
           <Button variant="ghost" size="sm" className="text-muted-foreground ml-auto gap-2">
@@ -148,6 +156,12 @@ export function PostCard({ post, onLikeUpdate }: PostCardProps) {
             <Bookmark className="h-4 w-4" />
           </Button>
         </div>
+
+        {showComments && (
+          <div className="mt-4 border-t pt-4">
+            <CommentSection postId={post.post_id} />
+          </div>
+        )}
       </CardContent>
     </Card>
   )

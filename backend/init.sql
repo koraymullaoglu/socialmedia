@@ -99,6 +99,7 @@ CREATE TABLE Communities (
     description TEXT,
     creator_id INT REFERENCES Users(user_id) ON DELETE CASCADE,
     privacy_id INT REFERENCES PrivacyTypes(privacy_id),
+    member_count INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -235,6 +236,25 @@ BEGIN
         setweight(to_tsvector('bilingual_tr_en', COALESCE(NEW.username, '')), 'A') ||
         setweight(to_tsvector('bilingual_tr_en', COALESCE(NEW.bio, '')), 'B');
     RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Member Count Update Trigger Function
+CREATE OR REPLACE FUNCTION update_community_member_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF (TG_OP = 'INSERT') THEN
+        UPDATE Communities
+        SET member_count = member_count + 1
+        WHERE community_id = NEW.community_id;
+        RETURN NEW;
+    ELSIF (TG_OP = 'DELETE') THEN
+        UPDATE Communities
+        SET member_count = member_count - 1
+        WHERE community_id = OLD.community_id;
+        RETURN OLD;
+    END IF;
+    RETURN NULL;
 END;
 $$ LANGUAGE plpgsql;
 
@@ -697,6 +717,9 @@ CREATE TRIGGER audit_user_deletion BEFORE DELETE ON Users FOR EACH ROW EXECUTE F
 -- Search Vector Triggers (User Bilingual)
 CREATE TRIGGER posts_search_vector_trigger BEFORE INSERT OR UPDATE OF content ON Posts FOR EACH ROW EXECUTE FUNCTION posts_search_vector_update_turkish();
 CREATE TRIGGER users_search_vector_trigger BEFORE INSERT OR UPDATE OF username, bio ON Users FOR EACH ROW EXECUTE FUNCTION users_search_vector_update_turkish();
+
+-- Community Member Count Trigger
+CREATE TRIGGER update_member_count AFTER INSERT OR DELETE ON CommunityMembers FOR EACH ROW EXECUTE FUNCTION update_community_member_count();
 
 -- ============================================
 -- 9. VIEWS
