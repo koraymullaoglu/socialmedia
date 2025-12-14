@@ -49,28 +49,37 @@ export default function ProfilePage() {
         // Only fetch specific data if profile exists and we have access
         if (profileData) {
           const [userPosts, followersList, followingList] = await Promise.all([
-            api.getUserPosts(profileData.user_id),
-            api.getFollowers(profileData.user_id),
-            api.getFollowing(profileData.user_id),
+            api.getUserPosts(profileData.user_id).catch(() => []),
+            api.getFollowers(profileData.user_id).catch(() => []),
+            api.getFollowing(profileData.user_id).catch(() => []),
           ])
 
           setPosts(userPosts)
           setFollowers(followersList)
           setFollowing(followingList)
 
-          // Update stats with actual counts from fetched data
-          setProfile((prev) =>
-            prev
-              ? {
-                  ...prev,
-                  stats: {
-                    posts_count: userPosts.length,
-                    followers_count: followersList.length,
-                    following_count: followingList.length,
-                  },
-                }
-              : null
-          )
+          // Update stats with actual counts from fetched data only if we have full access
+          setProfile((prev) => {
+            if (!prev) return null
+
+            // If we can't see the profile details (private), don't overwrite stats with 0s from empty lists
+            if (
+              profileData.is_private &&
+              !profileData.is_own_profile &&
+              !profileData.is_following
+            ) {
+              return prev
+            }
+
+            return {
+              ...prev,
+              stats: {
+                posts_count: userPosts.length,
+                followers_count: followersList.length,
+                following_count: followingList.length,
+              },
+            }
+          })
         }
       } catch (err) {
         console.error("Error loading profile:", err)
@@ -88,21 +97,47 @@ export default function ProfilePage() {
 
     try {
       setIsFollowLoading(true)
-      if (profile.is_following) {
+
+      if (profile.has_pending_request) {
+        // Cancel pending request
         await api.unfollowUser(profile.user_id)
+        setProfile({
+          ...profile,
+          has_pending_request: false,
+        })
+      } else if (profile.is_following) {
+        // Unfollow user
+        await api.unfollowUser(profile.user_id)
+        setProfile({
+          ...profile,
+          is_following: false,
+          stats: {
+            ...profile.stats,
+            followers_count: profile.stats.followers_count - 1,
+          },
+        })
       } else {
+        // Follow user
         await api.followUser(profile.user_id)
+
+        if (profile.is_private) {
+          // If private, set as pending
+          setProfile({
+            ...profile,
+            has_pending_request: true,
+          })
+        } else {
+          // If public, set as following
+          setProfile({
+            ...profile,
+            is_following: true,
+            stats: {
+              ...profile.stats,
+              followers_count: profile.stats.followers_count + 1,
+            },
+          })
+        }
       }
-      setProfile({
-        ...profile,
-        is_following: !profile.is_following,
-        stats: {
-          ...profile.stats,
-          followers_count: profile.is_following
-            ? profile.stats.followers_count - 1
-            : profile.stats.followers_count + 1,
-        },
-      })
     } catch (err) {
       console.error("Failed to toggle follow:", err)
     } finally {
@@ -164,26 +199,39 @@ export default function ProfilePage() {
         />
 
         <div className="flex gap-2">
-          <FollowersDialog
-            trigger={
-              <Button variant="outline" size="sm">
-                {profile.stats.followers_count} Followers
+          {profile.is_private && !profile.is_own_profile && !profile.is_following ? (
+            <>
+              <Button variant="outline" size="sm" disabled>
+                Followers
               </Button>
-            }
-            title="Followers"
-            users={followers}
-            onFollowToggle={handleUserFollowToggle}
-          />
-          <FollowersDialog
-            trigger={
-              <Button variant="outline" size="sm">
-                {profile.stats.following_count} Following
+              <Button variant="outline" size="sm" disabled>
+                Following
               </Button>
-            }
-            title="Following"
-            users={following}
-            onFollowToggle={handleUserFollowToggle}
-          />
+            </>
+          ) : (
+            <>
+              <FollowersDialog
+                trigger={
+                  <Button variant="outline" size="sm">
+                    {profile.stats.followers_count} Followers
+                  </Button>
+                }
+                title="Followers"
+                users={followers}
+                onFollowToggle={handleUserFollowToggle}
+              />
+              <FollowersDialog
+                trigger={
+                  <Button variant="outline" size="sm">
+                    {profile.stats.following_count} Following
+                  </Button>
+                }
+                title="Following"
+                users={following}
+                onFollowToggle={handleUserFollowToggle}
+              />
+            </>
+          )}
         </div>
 
         <ProfilePosts

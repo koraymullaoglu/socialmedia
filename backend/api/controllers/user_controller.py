@@ -171,11 +171,13 @@ def search_users():
     try:
         query = request.args.get('q', '')
         limit = request.args.get('limit', 20, type=int)
+        following_only = request.args.get('following_only', 'false').lower() == 'true'
 
         if not query:
             return make_response(jsonify({"error": "Search query 'q' is required"}), 400)
 
-        users = user_service.search_users(query=query, limit=limit)
+        only_following_id = g.current_user_id if following_only else None
+        users = user_service.search_users(query=query, limit=limit, only_following_for_user_id=only_following_id)
 
         return make_response(jsonify({"users": users, "count": len(users)}), 200)
 
@@ -193,11 +195,7 @@ def get_user_by_id(user_id):
         if not user:
             return make_response(jsonify({"error": "User not found"}), 404)
         
-        if user.get('is_private') and not user.get('can_view_profile', True):
-            return make_response(jsonify({
-                "error": "This account is private",
-                "user": user
-            }), 403)
+
 
         return make_response(jsonify({"user": user}), 200)
 
@@ -215,11 +213,7 @@ def get_user_by_username(username):
         if not user:
             return make_response(jsonify({"error": "User not found"}), 404)
         
-        if user.get('is_private') and not user.get('can_view_profile', True):
-            return make_response(jsonify({
-                "error": "This account is private",
-                "user": user
-            }), 403)
+
 
         return make_response(jsonify({"user": user}), 200)
 

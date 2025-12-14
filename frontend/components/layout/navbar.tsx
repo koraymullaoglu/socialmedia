@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { Menu, User, Users, X } from "lucide-react"
+import { Home, Menu, MessageCircle, Settings, User, UserPlus, Users, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 
@@ -30,21 +30,32 @@ export function Navbar() {
               <>
                 <Link
                   href="/home"
-                  className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm font-medium transition-colors"
                 >
+                  <Home className="h-4 w-4" />
                   Home
                 </Link>
                 <Link
                   href="/communities"
-                  className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm font-medium transition-colors"
                 >
+                  <Users className="h-4 w-4" />
                   Communities
                 </Link>
                 <Link
-                  href="/dashboard"
-                  className="text-muted-foreground hover:text-foreground text-sm font-medium transition-colors"
+                  href="/messages"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm font-medium transition-colors"
                 >
-                  Dashboard
+                  <MessageCircle className="h-4 w-4" />
+                  Messages
+                </Link>
+
+                <Link
+                  href="/follow-requests"
+                  className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm font-medium transition-colors"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Requests
                 </Link>
                 <Link
                   href={`/profile/${user?.username}`}
@@ -52,6 +63,13 @@ export function Navbar() {
                 >
                   <User className="h-4 w-4" />
                   <span className="text-sm font-medium">{user?.username}</span>
+                </Link>
+                <Link
+                  href="/settings"
+                  className="bg-muted hover:bg-muted/80 flex items-center gap-2 rounded-lg px-3 py-2 transition-colors"
+                >
+                  <Settings className="h-4 w-4" />
+                  <span className="text-sm font-medium">Settings</span>
                 </Link>
                 <Button onClick={logout} variant="outline" size="sm">
                   Logout
@@ -84,9 +102,10 @@ export function Navbar() {
               <>
                 <Link
                   href="/home"
-                  className="text-foreground hover:bg-muted block rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  className="text-foreground hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
+                  <Home className="h-4 w-4" />
                   Home
                 </Link>
                 <Link
@@ -98,11 +117,21 @@ export function Navbar() {
                   Communities
                 </Link>
                 <Link
-                  href="/dashboard"
-                  className="text-foreground hover:bg-muted block rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  href="/messages"
+                  className="text-foreground hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Dashboard
+                  <MessageCircle className="h-4 w-4" />
+                  Messages
+                </Link>
+
+                <Link
+                  href="/follow-requests"
+                  className="text-foreground hover:bg-muted flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Follow Requests
                 </Link>
                 <Link
                   href={`/profile/${user?.username}`}

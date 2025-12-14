@@ -3,19 +3,25 @@ import type {
   CommunitiesResponse,
   Community,
   CommunityMembersResponse,
+  ConversationsResponse,
   CreateCommentData,
   CreateCommunityData,
   CreatePostData,
   FeedResponse,
+  FollowRequestsResponse,
   FollowUser,
   LoginResponse,
+  Message,
+  MessagesResponse,
   Post,
   ProfileData,
   RecommendationResponse,
   RegisterData,
+  SendMessageData, // Declare SendMessageData here
   UpdateCommunityData,
   UpdateProfileData,
   User,
+  UserSearchResponse,
 } from "./types"
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"
@@ -83,6 +89,14 @@ class ApiClient {
     return responseData.user
   }
 
+  async deleteAccount(): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/auth/me`, {
+      method: "DELETE",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
   async followUser(userId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/users/${userId}/follow`, {
       method: "POST",
@@ -142,6 +156,35 @@ class ApiClient {
     return this.handleResponse<FeedResponse>(response)
   }
 
+  async getTrendingHashtags(
+    limit = 5
+  ): Promise<{ hashtags: { hashtag: string; count: number }[] }> {
+    const response = await fetch(`${API_BASE_URL}/api/posts/trending?limit=${limit}`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<{ hashtags: { hashtag: string; count: number }[] }>(response)
+  }
+
+  async searchPosts(query: string, limit = 50, offset = 0): Promise<FeedResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/posts/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<FeedResponse>(response)
+  }
+
+  async searchCommunities(query: string, limit = 50, offset = 0): Promise<CommunitiesResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/communities/search?q=${encodeURIComponent(query)}&limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<CommunitiesResponse>(response)
+  }
+
   async likePost(postId: number): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/api/posts/${postId}/like`, {
       method: "POST",
@@ -190,13 +233,6 @@ class ApiClient {
 
   async getMyCommunities(): Promise<CommunitiesResponse> {
     const response = await fetch(`${API_BASE_URL}/api/communities/me/communities`, {
-      headers: this.getAuthHeaders(),
-    })
-    return this.handleResponse<CommunitiesResponse>(response)
-  }
-
-  async searchCommunities(query: string): Promise<CommunitiesResponse> {
-    const response = await fetch(`${API_BASE_URL}/api/communities/search?q=${query}`, {
       headers: this.getAuthHeaders(),
     })
     return this.handleResponse<CommunitiesResponse>(response)
@@ -375,6 +411,92 @@ class ApiClient {
 
     const data = await this.handleResponse<{ url: string }>(response)
     return data.url
+  }
+
+  // Direct Messages API methods
+  async getConversations(limit = 50, offset = 0): Promise<ConversationsResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/messages/conversations?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<ConversationsResponse>(response)
+  }
+
+  async getConversationMessages(
+    otherUserId: number,
+    limit = 50,
+    offset = 0
+  ): Promise<MessagesResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/messages/conversations/${otherUserId}?limit=${limit}&offset=${offset}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<MessagesResponse>(response)
+  }
+
+  async sendMessage(data: SendMessageData): Promise<Message> {
+    const response = await fetch(`${API_BASE_URL}/api/messages`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: JSON.stringify(data),
+    })
+    const responseData = await this.handleResponse<{ success: boolean; message: Message }>(response)
+    return responseData.message
+  }
+
+  async markMessageAsRead(messageId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/messages/${messageId}/read`, {
+      method: "PUT",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async getUnreadMessageCount(): Promise<number> {
+    const response = await fetch(`${API_BASE_URL}/api/messages/unread-count`, {
+      headers: this.getAuthHeaders(),
+    })
+    const data = await this.handleResponse<{ unread_count: number }>(response)
+    return data.unread_count || 0
+  }
+
+  // User Search API method
+  async searchUsers(query: string, limit = 20, followingOnly = false): Promise<UserSearchResponse> {
+    const response = await fetch(
+      `${API_BASE_URL}/api/auth/users/search?q=${encodeURIComponent(query)}&limit=${limit}&following_only=${followingOnly}`,
+      {
+        headers: this.getAuthHeaders(),
+      }
+    )
+    return this.handleResponse<UserSearchResponse>(response)
+  }
+
+  // Follow Requests API methods
+  async getFollowRequests(): Promise<FollowRequestsResponse> {
+    const response = await fetch(`${API_BASE_URL}/api/me/follow-requests`, {
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<FollowRequestsResponse>(response)
+  }
+
+  async acceptFollowRequest(followerId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/me/follow-requests/${followerId}/accept`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
+  }
+
+  async rejectFollowRequest(followerId: number): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/api/me/follow-requests/${followerId}/reject`, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+    })
+    return this.handleResponse<void>(response)
   }
 }
 

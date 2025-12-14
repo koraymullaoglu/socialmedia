@@ -87,11 +87,13 @@ export interface FollowUser {
   profile_picture_url?: string
   bio?: string
   is_following?: boolean
+  has_pending_request?: boolean
 }
 
 export interface ProfileData extends User {
   stats: FollowStats
   is_following?: boolean
+  has_pending_request?: boolean
   is_own_profile: boolean
 }
 
@@ -168,4 +170,71 @@ export interface UpdateCommunityData {
   name?: string
   description?: string
   privacy_id?: number
+}
+
+export interface Message {
+  message_id: number
+  sender_id: number
+  receiver_id: number
+  content: string
+  media_url?: string
+  created_at: string
+  is_read?: boolean
+}
+
+export interface Conversation {
+  other_user: {
+    user_id: number
+    username: string
+    profile_picture_url?: string
+  }
+  last_message: {
+    content: string
+    created_at: string
+  }
+  unread_count: number
+}
+
+export interface ConversationsResponse {
+  conversations: Conversation[]
+  count: number
+}
+
+export interface MessagesResponse {
+  messages: Message[]
+  success: boolean
+}
+
+export interface SendMessageData {
+  receiver_id: number
+  content: string
+  media_url?: string
+}
+
+export interface FollowRequest {
+  follower_id: number
+  following_id: number
+  status_id: number
+  created_at: string
+  user_id: number // This comes from the joined User table (the follower)
+  username: string
+  profile_picture_url?: string
+  bio?: string
+}
+
+export interface FollowRequestsResponse {
+  requests: FollowRequest[]
+}
+
+export interface UserSearchResult {
+  user_id: number
+  username: string
+  profile_picture_url?: string
+  bio?: string
+  is_private: boolean
+}
+
+export interface UserSearchResponse {
+  users: UserSearchResult[]
+  count: number
 }

@@ -1,5 +1,6 @@
 from api.repositories.message_repository import MessageRepository
 from api.repositories.user_repository import UserRepository
+from api.repositories.follow_repository import FollowRepository
 from api.entities.entities import Message
 from typing import Dict, Any, List
 
@@ -8,6 +9,7 @@ class MessageService:
     def __init__(self):
         self.message_repository = MessageRepository()
         self.user_repository = UserRepository()
+        self.follow_repository = FollowRepository()
     
     def send_message(self, sender_id: int, receiver_id: int, content: str = None, media_url: str = None) -> Dict[str, Any]:
         """Send a message to another user"""
@@ -19,6 +21,10 @@ class MessageService:
         receiver = self.user_repository.get_by_id(receiver_id)
         if not receiver:
             return {"success": False, "error": "Receiver not found"}
+
+        # Check if sender follows receiver
+        if not self.follow_repository.is_following(sender_id, receiver_id):
+            return {"success": False, "error": "You must follow this user to send them a message"}
         
         # Create message entity
         message = Message(
@@ -62,10 +68,29 @@ class MessageService:
             }
         }
 
-    def get_conversations(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_conversations(self, user_id: int, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
         """Get all conversations for a user"""
-        conversations = self.message_repository.get_user_conversations(user_id, limit, offset)
-        return conversations
+        raw_conversations = self.message_repository.get_user_conversations(user_id, limit, offset)
+        
+        conversations = []
+        for conv in raw_conversations:
+            conversations.append({
+                "other_user": {
+                    "user_id": conv["other_user_id"],
+                    "username": conv["username"],
+                    "profile_picture_url": conv["profile_picture_url"]
+                },
+                "last_message": {
+                    "content": conv["content"],
+                    "created_at": conv["created_at"].isoformat() if conv["created_at"] else None
+                },
+                "unread_count": 0 # TODO: Implement unread count per conversation
+            })
+            
+        return {
+            "conversations": conversations,
+            "count": len(conversations)
+        }
 
     def mark_as_read(self, message_id: int, user_id: int) -> Dict[str, Any]:
         """Mark a message as read (only receiver can mark)"""

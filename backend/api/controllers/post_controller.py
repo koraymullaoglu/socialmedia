@@ -116,6 +116,30 @@ def get_discover_feed():
     return jsonify({"success": True, **result}), 200
 
 
+@post_bp.route('/posts/trending', methods=['GET'])
+@token_required
+def get_trending_hashtags():
+    """Get trending hashtags"""
+    limit = request.args.get('limit', 5, type=int)
+    result = post_service.get_trending_hashtags(limit)
+    return jsonify(result), 200
+
+
+@post_bp.route('/posts/search', methods=['GET'])
+@token_required
+def search_posts():
+    """Search posts"""
+    query = request.args.get('q')
+    if not query:
+        return jsonify({"success": False, "error": "Query parameter 'q' is required"}), 400
+        
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+    
+    result = post_service.search_posts(query, limit, offset)
+    return jsonify(result), 200
+
+
 @post_bp.route('/posts/<int:post_id>/like', methods=['POST'])
 @token_required
 def like_post(post_id):

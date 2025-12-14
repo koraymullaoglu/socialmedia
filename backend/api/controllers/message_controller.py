@@ -42,10 +42,7 @@ def get_conversations():
         
         conversations = message_service.get_conversations(user_id, limit, offset)
         
-        return make_response(jsonify({
-            "conversations": conversations,
-            "count": len(conversations)
-        }), 200)
+        return make_response(jsonify(conversations), 200)
     
     except Exception as e:
         return make_response(jsonify({"error": str(e)}), 500)

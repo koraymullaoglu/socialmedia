@@ -103,11 +103,35 @@ class UserRepository:
         result = self.db.session.execute(query, {"limit": limit, "offset": offset})
         return [User.from_row(row) for row in result.fetchall()]
 
-    def search(self, query_str: str, limit: int = 20) -> List[User]:
-        """Search users by username using Full Text Search"""
-        query = text("SELECT * FROM search_users(:search, 'english', :limit)")
-        result = self.db.session.execute(query, {"search": query_str, "limit": limit})
-        return [User.from_row(row) for row in result.fetchall()]
+    def search(self, query_str: str, limit: int = 20, only_following_for_user_id: Optional[int] = None) -> List[User]:
+        """Search users by username using ILIKE for better partial matching"""
+        # Using ILIKE for username prefix search which is more intuitive for autocomplete
+        if only_following_for_user_id:
+            query = text("""
+                SELECT u.* FROM Users u
+                JOIN Follows f ON f.following_id = u.user_id
+                WHERE f.follower_id = :current_user_id AND f.status_id = 2
+                AND (u.username ILIKE :search OR u.bio ILIKE :search)
+                ORDER BY u.username ASC
+                LIMIT :limit
+            """)
+            search_pattern = f"%{query_str}%"
+            result = self.db.session.execute(query, {
+                "search": search_pattern, 
+                "limit": limit,
+                "current_user_id": only_following_for_user_id
+            })
+            return [User.from_row(row) for row in result.fetchall()]
+        else:
+            query = text("""
+                SELECT * FROM Users 
+                WHERE username ILIKE :search OR bio ILIKE :search
+                ORDER BY username ASC
+                LIMIT :limit
+            """)
+            search_pattern = f"%{query_str}%"
+            result = self.db.session.execute(query, {"search": search_pattern, "limit": limit})
+            return [User.from_row(row) for row in result.fetchall()]
 
     def count(self) -> int:
         """Get total user count"""

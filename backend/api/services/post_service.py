@@ -185,6 +185,21 @@ class PostService:
             "offset": offset
         }
 
+    def get_trending_hashtags(self, limit: int = 5) -> Dict[str, Any]:
+        """Get trending hashtags"""
+        hashtags = self.post_repository.get_trending_hashtags(limit)
+        return {"success": True, "hashtags": hashtags}
+
+    def search_posts(self, query: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        """Search posts"""
+        posts = self.post_repository.search_posts(query, limit, offset)
+        return {
+            "success": True,
+            "posts": posts,
+            "limit": limit,
+            "offset": offset
+        }
+
     def like_post(self, post_id: int, user_id: int) -> Dict[str, Any]:
         """Like a post with validation"""
         # Get post

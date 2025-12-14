@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Calendar, LinkIcon, Settings, UserMinus, UserPlus } from "lucide-react"
+import { Calendar, Clock, LinkIcon, Settings, UserMinus, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -51,6 +51,16 @@ export function ProfileHeader({ profile, onFollowToggle, isLoading }: ProfileHea
                   <Settings className="mr-2 h-4 w-4" />
                   Edit Profile
                 </Link>
+              </Button>
+            ) : profile.has_pending_request ? (
+              <Button
+                onClick={onFollowToggle}
+                disabled={isLoading}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <Clock className="mr-2 h-4 w-4" />
+                Requested
               </Button>
             ) : (
               <Button

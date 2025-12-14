@@ -26,16 +26,38 @@ class UserService:
             user_dict = user.to_dict()
             # Add privacy info if current_user_id is provided
             if current_user_id and current_user_id != user.user_id:
+                # Check follow status
+                follow = self.follow_repository.get_by_ids(current_user_id, user.user_id)
+                is_following = follow is not None and follow.status_id == 2
+                has_pending_request = follow is not None and follow.status_id == 1
+                user_dict['is_following'] = is_following
+                user_dict['has_pending_request'] = has_pending_request
+                
                 can_view = self.can_view_profile(user.user_id, current_user_id)
                 user_dict['can_view_profile'] = can_view
-                # If user is private and viewer can't see, return limited info
+                
                 if user.is_private and not can_view:
+                    # Return limited info, with stats hidden (0) as requested
                     return {
                         "user_id": user.user_id,
                         "username": user.username,
+                        "bio": user.bio,
+                        "profile_picture_url": user.profile_picture_url,
                         "is_private": user.is_private,
-                        "can_view_profile": False
+                        "can_view_profile": False,
+                        "is_following": is_following,
+                        "has_pending_request": has_pending_request,
+                        "created_at": user.created_at.isoformat() if user.created_at else None,
+                        "stats": {
+                            "followers_count": 0,
+                            "following_count": 0,
+                            "posts_count": 0
+                        }
                     }
+            elif current_user_id == user.user_id:
+                 user_dict['is_following'] = False # Cannot follow self
+                 user_dict['can_view_profile'] = True
+
             return user_dict
         return None
 
@@ -93,9 +115,9 @@ class UserService:
             return {"success": True, "message": "Account deleted successfully"}
         return {"success": False, "error": "Failed to delete account"}
 
-    def search_users(self, query: str, limit: int = 20) -> List[Dict[str, Any]]:
+    def search_users(self, query: str, limit: int = 20, only_following_for_user_id: Optional[int] = None) -> List[Dict[str, Any]]:
         """Search users by username"""
-        users = self.user_repository.search(query, limit)
+        users = self.user_repository.search(query, limit, only_following_for_user_id)
         return [user.to_dict() for user in users]
 
     def get_all_users(self, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:

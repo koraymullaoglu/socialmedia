@@ -371,3 +371,71 @@ class PostRepository:
             })
             
         return posts
+
+    def get_trending_hashtags(self, limit: int = 5) -> List[Dict]:
+        """Get trending hashtags from recent posts"""
+        # Fetch recent posts to analyze hashtags
+        # Limiting to last 1000 posts for performance on large datasets
+        query = text("SELECT content FROM Posts ORDER BY created_at DESC LIMIT 1000")
+        result = self.db.session.execute(query)
+        
+        hashtag_counts = {}
+        for row in result.fetchall():
+            content = row.content
+            if not content:
+                continue
+            
+            # Simple hashtag extraction
+            words = content.split()
+            for word in words:
+                if word.startswith('#') and len(word) > 1:
+                    tag = word[1:].lower() # Normalize to lowercase
+                    # Basic cleanup of punctuation
+                    tag = "".join(c for c in tag if c.isalnum() or c == '_')
+                    if tag:
+                        hashtag_counts[tag] = hashtag_counts.get(tag, 0) + 1
+        
+        # Sort by count and take top N
+        sorted_tags = sorted(hashtag_counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+        
+        return [{"hashtag": tag, "count": count} for tag, count in sorted_tags]
+
+    def search_posts(self, query_str: str, limit: int = 50, offset: int = 0) -> List[Dict]:
+        """Search posts by content"""
+        query = text("""
+            SELECT 
+                p.*,
+                u.username,
+                u.profile_picture_url as user_profile_picture,
+                COALESCE(COUNT(DISTINCT pl.user_id), 0) as like_count,
+                COALESCE(COUNT(DISTINCT c.comment_id), 0) as comment_count,
+                FALSE as liked_by_user
+            FROM Posts p
+            JOIN Users u ON p.user_id = u.user_id
+            LEFT JOIN PostLikes pl ON p.post_id = pl.post_id
+            LEFT JOIN Comments c ON p.post_id = c.post_id
+            WHERE p.content ILIKE :search
+            GROUP BY p.post_id, u.username, u.profile_picture_url
+            ORDER BY p.created_at DESC 
+            LIMIT :limit OFFSET :offset
+        """)
+        
+        result = self.db.session.execute(query, {
+            "search": f"%{query_str}%",
+            "limit": limit,
+            "offset": offset
+        })
+        
+        posts = []
+        for row in result.fetchall():
+            post = Post.from_row(row)
+            posts.append({
+                **post.to_dict(),
+                'username': row.username,
+                'user_profile_picture': row.user_profile_picture,
+                'like_count': row.like_count,
+                'comment_count': row.comment_count,
+                'liked_by_user': row.liked_by_user
+            })
+            
+        return posts
