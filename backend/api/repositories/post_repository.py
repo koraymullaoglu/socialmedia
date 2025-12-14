@@ -301,7 +301,13 @@ class PostRepository:
         return posts_with_stats
 
     def get_feed_with_stats(self, user_id: int, limit: int = 50, offset: int = 0) -> List[Dict]:
-        """Get feed posts with engagement metrics (accepted follows only)"""
+        """Get feed posts with engagement metrics (accepted follows only)
+        
+        OPTIMIZED: Single query with JOINs to avoid N+1 problem
+        - Fetches user info with JOIN (not separate queries)
+        - Batches like counts with subquery
+        - Batches comment counts with subquery
+        """
         query = text("""
             SELECT 
                 v.post_id, v.author_id as user_id, v.community_id, v.content, v.media_url, v.created_at, v.updated_at,
@@ -322,7 +328,6 @@ class PostRepository:
         
         posts_with_stats = []
         for row in result.fetchall():
-            post = Post.from_row(row)
             posts_with_stats.append({
                 **post.to_dict(),
                 'username': row.author_username,
