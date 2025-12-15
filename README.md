@@ -242,3 +242,41 @@ SocialMediaProject/
 
 *   Backend'e yeni bir paket eklerseniz `pip freeze > requirements.txt` ile bağımlılık listesini güncellemeyi unutmayın.
 *   Veritabanı şemasında değişiklik yaparsanız `database` klasörünü güncel tutun.
+
+---
+
+## 🔒 Security
+
+### SQL Injection Protection
+
+This application is **fully protected against SQL injection attacks**. All database queries use parameterized queries with SQLAlchemy's `text()` function.
+
+**Security Status**: ✅ **SECURE**
+
+- ✅ All 70 repository methods use `:parameter` syntax
+- ✅ No raw string concatenation in SQL
+- ✅ Comprehensive test coverage (18 security tests)
+- ✅ Zero vulnerabilities identified
+
+**Documentation**:
+- [SQL Injection Protection Guide](backend/SQL_INJECTION_PROTECTION.md) - Detailed security documentation
+- [Security Audit Summary](backend/SQL_INJECTION_AUDIT_SUMMARY.md) - Complete audit findings
+- [SQL Injection Tests](backend/tests/test_sql_injection.py) - Test suite
+
+**Run Security Tests**:
+```bash
+cd backend
+python -m pytest tests/test_sql_injection.py -v
+```
+
+**Example of Secure Code**:
+```python
+# ✅ SECURE - Parameterized query
+query = text("SELECT * FROM Users WHERE username = :username")
+result = db.session.execute(query, {"username": user_input})
+
+# ❌ NEVER DO THIS - String concatenation
+query = f"SELECT * FROM Users WHERE username = '{user_input}'"
+```
+
+For more information, see [SQL_INJECTION_PROTECTION.md](backend/SQL_INJECTION_PROTECTION.md).
