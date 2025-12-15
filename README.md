@@ -169,6 +169,9 @@ Backend sunucusu API isteklerini karşılar.
 |-------|----------|
 | `python app.py` | Backend sunucusunu başlatır. |
 | `python reset_db.py` | Veritabanını sıfırlar ve `init.sql` ile yeniden oluşturur. (Dikkat: Tüm veriler silinir!) |
+| `python seed_db.py` | seed_data.sql dosyasını kullanarak veritabanını doldurur. |
+| `python generate_seed_data.py` | Veritabanına test verileri ekler. |
+| `python generate_seed_avatars.py` | Veritabanına test avatarları ekler. |
 | `python run_all_tests.py` | Backend testlerini çalıştırır. |
 
 #### Frontend'i Başlatma
@@ -258,11 +261,6 @@ This application is **fully protected against SQL injection attacks**. All datab
 - ✅ Comprehensive test coverage (18 security tests)
 - ✅ Zero vulnerabilities identified
 
-**Documentation**:
-- [SQL Injection Protection Guide](backend/SQL_INJECTION_PROTECTION.md) - Detailed security documentation
-- [Security Audit Summary](backend/SQL_INJECTION_AUDIT_SUMMARY.md) - Complete audit findings
-- [SQL Injection Tests](backend/tests/test_sql_injection.py) - Test suite
-
 **Run Security Tests**:
 ```bash
 cd backend
@@ -278,5 +276,3 @@ result = db.session.execute(query, {"username": user_input})
 # ❌ NEVER DO THIS - String concatenation
 query = f"SELECT * FROM Users WHERE username = '{user_input}'"
 ```
-
-For more information, see [SQL_INJECTION_PROTECTION.md](backend/SQL_INJECTION_PROTECTION.md).
